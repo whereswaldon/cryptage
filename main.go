@@ -8,16 +8,37 @@ import (
 	"time"
 )
 
+const (
+	MAX_PORT = 65535
+	MIN_PORT = 1024
+)
+
 // main either listens over TCP or dials depending on whether a command line
 // argument was supplied for the port number. If no number was supplied, it
 // starts listening on a random port. If you supply a port number as an
 // argument, it connects to that port.
 func main() {
-	if len(os.Args) > 1 {
-		dial("localhost:" + os.Args[1])
+	if len(os.Args) < 2 {
+		usage()
+	} else if os.Args[1] == "join" {
+		if len(os.Args) < 3 {
+			usage()
+		}
+		dial(os.Args[2])
+	} else if os.Args[1] == "host" {
+		port := fmt.Sprintf(":%d", rand.Intn((MAX_PORT)-MIN_PORT)+MIN_PORT)
+		if len(os.Args) > 2 {
+			port = os.Args[2]
+		}
+		listen(port)
 	} else {
-		listen(fmt.Sprintf(":%d", rand.Intn((1<<16)-1024)+1024))
+		fmt.Fprintln(os.Stderr, "Unknown subcommand.")
 	}
+}
+
+func usage() {
+	fmt.Fprintln(os.Stderr, "Usage: "+os.Args[0]+" (host [<:port>] | join <hostname:port>)")
+	os.Exit(1)
 }
 
 // dial connects over tcp to the given address.
