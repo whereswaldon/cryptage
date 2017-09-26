@@ -1,0 +1,15 @@
+package deck
+
+// card represents a single card in a deck. The members correspond with:
+// p1cipher - face of card encrypted only with "player 1's" key
+// p2cipher - face of card encrypted only with "player 2's" key
+// bothCipher - face of card encrypted with both keys
+// plain - face of card in plaintext
+type card struct {
+	P1cipher, P2cipher, BothCipher, plain string
+}
+
+func (c *card) Face() string {
+	return ""
+}
+
