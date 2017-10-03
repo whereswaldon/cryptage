@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/whereswaldon/cryptage/deck"
 	"math/rand"
 	"net"
 	"os"
-	"time"
 )
 
 const (
@@ -48,7 +48,14 @@ func dial(address string) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	fmt.Println("Connected")
 	defer conn.Close()
+	deck, err := deck.NewDeck(conn)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	deck.Start()
 }
 
 // listen starts listening on the given port.
@@ -64,9 +71,15 @@ func listen(address string) {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
+		fmt.Println("Connected")
 		go func(conn net.Conn) {
-			fmt.Println("accepted: ", conn)
-			time.Sleep(30 * time.Second)
+    			defer conn.Close()
+			deck, err := deck.NewDeck(conn)
+			if err != nil {
+    				fmt.Println(err)
+    				return
+			}
+			deck.Play()
 		}(conn)
 	}
 }
