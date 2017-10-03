@@ -6,7 +6,7 @@ import (
 
 type Deck interface {
 	Draw() (string, error)
-	String() (string)
+	String() string
 }
 
 // ensure that *deck fulfills Deck interface
@@ -14,9 +14,9 @@ var _ Deck = &deck{}
 
 type deck struct {
 	cards      []card
+	protocol   *Protocol
 	connection io.ReadWriteCloser
 }
-
 
 // Draw draws a single card from the deck
 func (d *deck) Draw() (string, error) {
@@ -31,5 +31,13 @@ func (d *deck) String() string {
 // io.ReadWriteCloser is a connection of some sort to another
 // deck.
 func NewDeck(deckConnection io.ReadWriteCloser) (Deck, error) {
-	return nil, nil
+	d := &deck{
+		connection: deckConnection,
+	}
+	p, err := NewProtocol(deckConnection)
+	if err != nil {
+		return nil, err
+	}
+	d.protocol = p
+	return d, nil
 }
