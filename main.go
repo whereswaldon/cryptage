@@ -67,21 +67,18 @@ func listen(address string) {
 		os.Exit(1)
 	}
 	fmt.Println("Listening on port ", address)
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		fmt.Println("Connected")
-		go func(conn net.Conn) {
-			defer conn.Close()
-			deck, err := deck.NewDeck(conn)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			fmt.Println("Playing game")
-			deck.Play()
-		}(conn)
+	conn, err := ln.Accept()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
+	fmt.Println("Connected")
+
+	defer conn.Close()
+	deck, err := deck.NewDeck(conn)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("Playing game")
+	deck.Play()
 }
