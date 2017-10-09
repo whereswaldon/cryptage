@@ -7,12 +7,14 @@ import (
 )
 
 const (
-	QUIT = 0
+	QUIT       = 0
+	START_DECK = 1
 )
 
 // Message is a struct representing a request from one deck to another
 type Message struct {
 	Type uint64
+	Deck []string
 }
 
 // Protocol is an agent implementing the send and recieve sides of the
@@ -59,6 +61,11 @@ func NewProtocol(conn io.ReadWriteCloser, done <-chan struct{}) (*Protocol, erro
 // SendQuit asks the connected peer to quit
 func (p *Protocol) SendQuit() error {
 	return p.w.Encode(Message{Type: QUIT})
+}
+
+// SendStartDeck ships the first encrypted deck state to the other player
+func (p *Protocol) SendStartDeck(encryptedDeck []string) error {
+	return p.w.Encode(Message{Type: START_DECK, Deck: encryptedDeck})
 }
 
 // Listen waits for events from the connected peer
