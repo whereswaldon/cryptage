@@ -39,6 +39,14 @@ func (d *deck) Play() {
 	d.handleMessages()
 }
 
+func (d *deck) initCards() {
+	d.cards = make([]card, len(Cards))[:]
+	for i, c := range Cards {
+		d.cards[i] = card{plain: c}
+	}
+	fmt.Println(d.cards)
+}
+
 func (d *deck) handleMessages() {
 	defer d.Quit()
 	for msg := range d.protocol.Listen() {
@@ -54,6 +62,7 @@ func (d *deck) handleMessages() {
 
 // Start runs the game, and initiates the first hand
 func (d *deck) Start() {
+	d.initCards()
 	err := d.protocol.SendQuit()
 	if err != nil {
 		fmt.Println(err)

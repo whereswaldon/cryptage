@@ -1,5 +1,8 @@
 package deck
 
+// Cards is the deck of cards for this game. It can be overriden to use any card deck
+var Cards []string = []string{"ACE", "KING", "QUEEN"}
+
 // card represents a single card in a deck. The members correspond with:
 // p1cipher - face of card encrypted only with "player 1's" key
 // p2cipher - face of card encrypted only with "player 2's" key
@@ -12,4 +15,3 @@ type card struct {
 func (c *card) Face() string {
 	return ""
 }
-
