@@ -2,6 +2,7 @@ package deck
 
 import (
 	"encoding/gob"
+	"fmt"
 	"io"
 )
 
@@ -31,16 +32,25 @@ func NewProtocol(conn io.ReadWriteCloser, done <-chan struct{}) (*Protocol, erro
 		r:        gob.NewDecoder(conn),
 		w:        gob.NewEncoder(conn),
 		recieved: messages,
-		done: done,
+		done:     done,
 	}
 	go func() {
-        	defer close(proto.recieved)
-		for range proto.done {
+		defer close(proto.recieved)
+		for {
 			var message Message
-			if err := proto.r.Decode(&message); err == nil {
-				proto.recieved <- message
+			select {
+			case <-done:
+				return
+			default:
+				if err := proto.r.Decode(&message); err == nil {
+					proto.recieved <- message
+				} else if err == io.EOF {
+					fmt.Println("Disconnected: EOF")
+					return
+				} else {
+					fmt.Println(err)
+				}
 			}
-
 		}
 	}()
 	return proto, nil

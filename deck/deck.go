@@ -1,8 +1,8 @@
 package deck
 
 import (
-	"io"
 	"fmt"
+	"io"
 )
 
 type Deck interface {
@@ -36,25 +36,30 @@ func (d *deck) Quit() {
 
 // Play runs the game, but does not initiate it.
 func (d *deck) Play() {
+	d.handleMessages()
+}
+
+func (d *deck) handleMessages() {
 	defer d.Quit()
 	for msg := range d.protocol.Listen() {
 		switch msg.Type {
 		case QUIT:
 			fmt.Println("QUIT")
+			return
+		default:
+			fmt.Println("Unknown message: %v", msg)
 		}
 	}
 }
 
 // Start runs the game, and initiates the first hand
 func (d *deck) Start() {
-	defer d.Quit()
-	d.protocol.SendQuit()
-	for msg := range d.protocol.Listen() {
-		switch msg.Type {
-		case QUIT:
-			fmt.Println("QUIT")
-		}
+	err := d.protocol.SendQuit()
+	if err != nil {
+		fmt.Println(err)
 	}
+
+	d.handleMessages()
 }
 
 // NewDeck creates a deck of cards and assumes that the given

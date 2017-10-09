@@ -55,6 +55,7 @@ func dial(address string) {
 		fmt.Println(err)
 		return
 	}
+	fmt.Println("Starting game...")
 	deck.Start()
 }
 
@@ -73,12 +74,13 @@ func listen(address string) {
 		}
 		fmt.Println("Connected")
 		go func(conn net.Conn) {
-    			defer conn.Close()
+			defer conn.Close()
 			deck, err := deck.NewDeck(conn)
 			if err != nil {
-    				fmt.Println(err)
-    				return
+				fmt.Println(err)
+				return
 			}
+			fmt.Println("Playing game")
 			deck.Play()
 		}(conn)
 	}
