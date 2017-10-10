@@ -1,5 +1,9 @@
 package deck
 
+import (
+	"math/big"
+)
+
 // Cards is the deck of cards for this game. It can be overriden to use any card deck
 var Cards []string = []string{"ACE", "KING", "QUEEN"}
 
@@ -9,9 +13,10 @@ var Cards []string = []string{"ACE", "KING", "QUEEN"}
 // bothCipher - face of card encrypted with both keys
 // plain - face of card in plaintext
 type card struct {
-	P1cipher, P2cipher, BothCipher, plain string
+	P1cipher, P2cipher, BothCipher *big.Int
+	plain                          string
 }
 
 func (c *card) Face() string {
-	return ""
+	return c.plain
 }

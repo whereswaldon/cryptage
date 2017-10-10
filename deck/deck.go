@@ -2,7 +2,9 @@ package deck
 
 import (
 	"fmt"
+	shamir "github.com/sorribas/shamir3pass"
 	"io"
+	"math/big"
 )
 
 type Deck interface {
@@ -16,6 +18,7 @@ type Deck interface {
 var _ Deck = &deck{}
 
 type deck struct {
+	keys     shamir.Key
 	cards    []card
 	protocol *Protocol
 	done     chan struct{}
@@ -42,7 +45,12 @@ func (d *deck) Play() {
 func (d *deck) initCards() {
 	d.cards = make([]card, len(Cards))[:]
 	for i, c := range Cards {
-		d.cards[i] = card{plain: c}
+		d.cards[i] = card{
+			plain: c,
+			P1cipher: shamir.Encrypt(
+				big.NewInt(0).SetBytes([]byte(c)),
+				d.keys),
+		}
 	}
 	fmt.Println(d.cards)
 }
@@ -83,5 +91,6 @@ func NewDeck(deckConnection io.ReadWriteCloser) (Deck, error) {
 	}
 	d.done = done
 	d.protocol = p
+	d.keys = shamir.GenerateKey(128)
 	return d, nil
 }
