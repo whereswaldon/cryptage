@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
+	"math/big"
 )
 
 const (
@@ -14,7 +15,7 @@ const (
 // Message is a struct representing a request from one deck to another
 type Message struct {
 	Type uint64
-	Deck []string
+	Deck []*big.Int
 }
 
 // Protocol is an agent implementing the send and recieve sides of the
@@ -64,8 +65,12 @@ func (p *Protocol) SendQuit() error {
 }
 
 // SendStartDeck ships the first encrypted deck state to the other player
-func (p *Protocol) SendStartDeck(encryptedDeck []string) error {
-	return p.w.Encode(Message{Type: START_DECK, Deck: encryptedDeck})
+func (p *Protocol) SendStartDeck(encryptedDeck []card) error {
+	intArr := make([]*big.Int, len(encryptedDeck))
+	for i, c := range encryptedDeck {
+    		intArr[i] = c.P1cipher
+	}
+	return p.w.Encode(Message{Type: START_DECK, Deck: intArr})
 }
 
 // Listen waits for events from the connected peer

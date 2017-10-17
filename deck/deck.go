@@ -42,17 +42,31 @@ func (d *deck) Play() {
 	d.handleMessages()
 }
 
+// initCards  encrypts each card from the
+// plaintext to a player1 ciphertext
 func (d *deck) initCards() {
-	d.cards = make([]card, len(Cards))[:]
-	for i, c := range Cards {
-		d.cards[i] = card{
-			plain: c,
-			P1cipher: shamir.Encrypt(
-				big.NewInt(0).SetBytes([]byte(c)),
-				d.keys),
-		}
+	for i, c := range d.cards {
+		d.cards[i].P1cipher = shamir.Encrypt(big.NewInt(0).SetBytes([]byte(c.plain)), d.keys)
 	}
 	fmt.Println(d.cards)
+}
+
+// encrpytCards takes a deck with player1 ciphertext populated and
+// encrypts that ciphertext again to arrive at both players'
+// ciphertext.
+func (d *deck) encrpytCards() {
+    for i, c := range d.cards {
+        d.cards[i].BothCipher = shamir.Encrypt(c.P1cipher, d.keys)
+    }
+    fmt.Println(d.cards)
+}
+
+// setPlayer1Ciphers sets the ciphertext of the deck to the provided
+// array
+func (d *deck) setPlayer1Ciphers(ciphers []*big.Int) {
+    for i, c := range ciphers {
+        d.cards[i].P1cipher = c
+    }
 }
 
 func (d *deck) handleMessages() {
@@ -62,6 +76,11 @@ func (d *deck) handleMessages() {
 		case QUIT:
 			fmt.Println("QUIT")
 			return
+		case START_DECK:
+    			fmt.Println("START_DECK")
+    			fmt.Println(msg.Deck)
+    			d.setPlayer1Ciphers(msg.Deck)
+    			d.encrpytCards()
 		default:
 			fmt.Println("Unknown message: %v", msg)
 		}
@@ -71,8 +90,10 @@ func (d *deck) handleMessages() {
 // Start runs the game, and initiates the first hand
 func (d *deck) Start() {
 	d.initCards()
-	err := d.protocol.SendQuit()
-	if err != nil {
+	if err := d.protocol.SendStartDeck(d.cards); err != nil {
+		fmt.Println(err)
+	}
+	if err := d.protocol.SendQuit(); err != nil {
 		fmt.Println(err)
 	}
 
@@ -92,5 +113,9 @@ func NewDeck(deckConnection io.ReadWriteCloser) (Deck, error) {
 	d.done = done
 	d.protocol = p
 	d.keys = shamir.GenerateKey(128)
+	d.cards = make([]card, len(Cards))
+	for i, c := range Cards {
+    		d.cards[i] = card{plain: c}
+	}
 	return d, nil
 }
