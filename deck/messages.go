@@ -10,6 +10,7 @@ import (
 const (
 	QUIT       = 0
 	START_DECK = 1
+	END_DECK = 2
 )
 
 // Message is a struct representing a request from one deck to another
@@ -73,6 +74,14 @@ func (p *Protocol) SendStartDeck(encryptedDeck []card) error {
 	return p.w.Encode(Message{Type: START_DECK, Deck: intArr})
 }
 
+// SendEndDeck ships the first encrypted deck state to the other player
+func (p *Protocol) SendEndDeck(encryptedDeck []card) error {
+	intArr := make([]*big.Int, len(encryptedDeck))
+	for i, c := range encryptedDeck {
+    		intArr[i] = c.BothCipher
+	}
+	return p.w.Encode(Message{Type: END_DECK, Deck: intArr})
+}
 // Listen waits for events from the connected peer
 func (p *Protocol) Listen() <-chan Message {
 	return p.recieved

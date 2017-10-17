@@ -42,11 +42,11 @@ func (d *deck) Play() {
 	d.handleMessages()
 }
 
-// initCards  encrypts each card from the
+// initEncryptCards  encrypts each card from the
 // plaintext to a player1 ciphertext
-func (d *deck) initCards() {
-	for i, c := range d.cards {
-		d.cards[i].P1cipher = shamir.Encrypt(big.NewInt(0).SetBytes([]byte(c.plain)), d.keys)
+func (d *deck) initEncryptCards() {
+	for i, _ := range d.cards {
+		d.cards[i].P1cipher = shamir.Encrypt(big.NewInt(0).SetBytes([]byte(Cards[i])), d.keys)
 	}
 	fmt.Println(d.cards)
 }
@@ -69,6 +69,24 @@ func (d *deck) setPlayer1Ciphers(ciphers []*big.Int) {
     }
 }
 
+// clearPlayer1Ciphers erases old ciphertext
+func (d *deck) clearDeck() {
+    for i, _ := range d.cards {
+        d.cards[i].P1cipher = nil
+        d.cards[i].P2cipher = nil
+        d.cards[i].BothCipher = nil
+        d.cards[i].plain = ""
+    }
+}
+
+
+// setBothCiphers sets the ciphertext of the deck to the provided
+// array
+func (d *deck) setBothCiphers(ciphers []*big.Int) {
+    for i, c := range ciphers {
+        d.cards[i].BothCipher = c
+    }
+}
 func (d *deck) handleMessages() {
 	defer d.Quit()
 	for msg := range d.protocol.Listen() {
@@ -80,6 +98,15 @@ func (d *deck) handleMessages() {
     			fmt.Println("START_DECK")
     			d.setPlayer1Ciphers(msg.Deck)
     			d.encryptCards()
+    			d.protocol.SendEndDeck(d.cards)
+    		case END_DECK:
+        		fmt.Println("END_DECK")
+        		// since the ciphertext has been shuffled, we no longer
+        		// know which card is which. All of our old data is now
+        		// irrelevant
+        		d.clearDeck()
+        		d.setBothCiphers(msg.Deck)
+        		fmt.Println(d.cards)
 		default:
 			fmt.Println("Unknown message: %v", msg)
 		}
@@ -88,7 +115,7 @@ func (d *deck) handleMessages() {
 
 // Start runs the game, and initiates the first hand
 func (d *deck) Start() {
-	d.initCards()
+	d.initEncryptCards()
 	if err := d.protocol.SendStartDeck(d.cards); err != nil {
 		fmt.Println(err)
 	}
@@ -113,8 +140,6 @@ func NewDeck(deckConnection io.ReadWriteCloser) (Deck, error) {
 	d.protocol = p
 	d.keys = shamir.GenerateKey(128)
 	d.cards = make([]card, len(Cards))
-	for i, c := range Cards {
-    		d.cards[i] = card{plain: c}
-	}
+
 	return d, nil
 }
