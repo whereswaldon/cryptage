@@ -51,10 +51,10 @@ func (d *deck) initCards() {
 	fmt.Println(d.cards)
 }
 
-// encrpytCards takes a deck with player1 ciphertext populated and
+// encryptCards takes a deck with player1 ciphertext populated and
 // encrypts that ciphertext again to arrive at both players'
 // ciphertext.
-func (d *deck) encrpytCards() {
+func (d *deck) encryptCards() {
     for i, c := range d.cards {
         d.cards[i].BothCipher = shamir.Encrypt(c.P1cipher, d.keys)
     }
@@ -78,9 +78,8 @@ func (d *deck) handleMessages() {
 			return
 		case START_DECK:
     			fmt.Println("START_DECK")
-    			fmt.Println(msg.Deck)
     			d.setPlayer1Ciphers(msg.Deck)
-    			d.encrpytCards()
+    			d.encryptCards()
 		default:
 			fmt.Println("Unknown message: %v", msg)
 		}
