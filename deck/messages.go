@@ -8,15 +8,19 @@ import (
 )
 
 const (
-	QUIT       = 0
-	START_DECK = 1
-	END_DECK = 2
+	QUIT            = 0
+	START_DECK      = 1
+	END_DECK        = 2
+	DECRYPT_CARD    = 3
+	ONE_CIPHER_CARD = 4
 )
 
 // Message is a struct representing a request from one deck to another
 type Message struct {
-	Type uint64
-	Deck []*big.Int
+	Type  uint64
+	Deck  []*big.Int
+	Index uint64
+	Value *big.Int
 }
 
 // Protocol is an agent implementing the send and recieve sides of the
@@ -69,7 +73,7 @@ func (p *Protocol) SendQuit() error {
 func (p *Protocol) SendStartDeck(encryptedDeck []card) error {
 	intArr := make([]*big.Int, len(encryptedDeck))
 	for i, c := range encryptedDeck {
-    		intArr[i] = c.P1cipher
+		intArr[i] = c.P1cipher
 	}
 	return p.w.Encode(Message{Type: START_DECK, Deck: intArr})
 }
@@ -78,10 +82,21 @@ func (p *Protocol) SendStartDeck(encryptedDeck []card) error {
 func (p *Protocol) SendEndDeck(encryptedDeck []card) error {
 	intArr := make([]*big.Int, len(encryptedDeck))
 	for i, c := range encryptedDeck {
-    		intArr[i] = c.BothCipher
+		intArr[i] = c.BothCipher
 	}
 	return p.w.Encode(Message{Type: END_DECK, Deck: intArr})
 }
+
+// RequestDecryptCard asks the peer to remove their encryption from
+// the face of a card.
+func (p *Protocol) RequestDecryptCard(cardIndex uint64) error {
+	return p.w.Encode(Message{Type: DECRYPT_CARD, Index: cardIndex})
+}
+
+func (p *Protocol) SendDecryptedCard(cardIndex uint64, cardCipher *big.Int) error {
+	return p.w.Encode(Message{Type: ONE_CIPHER_CARD, Index: cardIndex, Value: cardCipher})
+}
+
 // Listen waits for events from the connected peer
 func (p *Protocol) Listen() <-chan Message {
 	return p.recieved

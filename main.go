@@ -56,7 +56,13 @@ func dial(address string) {
 		return
 	}
 	fmt.Println("Starting game...")
-	deck.Start()
+	if err := deck.Start(); err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("Playing...")
+	for {
+	}
 }
 
 // listen starts listening on the given port.
@@ -79,6 +85,11 @@ func listen(address string) {
 		fmt.Println(err)
 		return
 	}
+
 	fmt.Println("Playing game")
 	deck.Play()
+	fmt.Println("Playing...")
+	deck.Draw()
+	for {
+	}
 }
