@@ -17,14 +17,6 @@ func getKeyPair() (*shamir3pass.Key, *shamir3pass.Key) {
 	return &key1, &key2
 }
 
-func EncryptString(s string, k *shamir3pass.Key) *big.Int {
-	return shamir3pass.Encrypt(big.NewInt(0).SetBytes([]byte(s)), *k)
-}
-
-func DecryptString(i *big.Int, k *shamir3pass.Key) string {
-	return string(shamir3pass.Decrypt(i, *k).Bytes())
-}
-
 var _ = Describe("Card", func() {
 	Describe("Creating a Card from a string", func() {
 		Context("Where the string is empty", func() {
@@ -146,7 +138,7 @@ var _ = Describe("Card", func() {
 			})
 		})
 	})
-	Describe("Setting the opponent's key  on a card", func() {
+	Describe("Setting the opponent's key on a card", func() {
 		Context("Where the key is nil", func() {
 			It("Should return an error", func() {
 				k1, k2 := getKeyPair()
@@ -160,12 +152,8 @@ var _ = Describe("Card", func() {
 			It("Should return no error", func() {
 				k1, k2 := getKeyPair()
 				their := EncryptString("test", k2)
-				mine := EncryptString("test", k1)
 				card, _ := CardFromTheirs(their, k1)
-				err := card.SetTheirKey(their)
-				Expect(err).To(BeNil())
-				m2, err := card.Mine()
-				Expect(m2).ToNot(BeNil())
+				err := card.SetTheirKey(k2)
 				Expect(err).To(BeNil())
 			})
 		})

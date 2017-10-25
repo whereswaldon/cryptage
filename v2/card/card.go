@@ -126,6 +126,9 @@ func (c *card) SetMine(mine *big.Int) error {
 // SetTheirKey gives the card the key that the opponent used to perform
 // their side of the encryption. It returns and error if the key is invalid.
 func (c *card) SetTheirKey(theirKey *shamir3pass.Key) error {
+	if theirKey == nil {
+		return fmt.Errorf("Cannot set theirKey as nil")
+	}
 	return nil
 }
 
