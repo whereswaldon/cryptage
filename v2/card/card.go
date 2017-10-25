@@ -2,10 +2,10 @@ package card
 
 import (
 	"fmt"
-	//"github.com/pkg/errors"
 	"github.com/sorribas/shamir3pass"
-	. "github.com/whereswaldon/cryptage/v2/types"
 	"math/big"
+
+	. "github.com/whereswaldon/cryptage/v2/types"
 )
 
 // NewCard creates an entirely new card from the given face
@@ -57,15 +57,27 @@ func (c *card) Face() (string, error) {
 	}
 	return "", fmt.Errorf("Unable to view card face, need other player to decrypt card: %v", c)
 }
+
+// Mine returns the card's face encrypted solely by the local player's key,
+// if possible.
 func (c *card) Mine() (*big.Int, error) {
 	if c.mine != nil {
 		return c.mine, nil
 	}
 	return nil, fmt.Errorf("Unable to get card solely encrypted by local player: %v", c)
 }
+
+// Theirs returns the card's face encrypted solely by the opponent's key,
+// if possible.
 func (c *card) Theirs() (*big.Int, error) {
 	return nil, nil
 }
+
+// Both returns the card's face encrypted with the keys of both players.
 func (c *card) Both() (*big.Int, error) {
 	return nil, nil
+}
+
+func (c *card) String() string {
+	return fmt.Sprintf("mine: %v\ntheirs:%v\nboth:%v\nface:%s", c.mine, c.theirs, c.both, c.face)
 }
