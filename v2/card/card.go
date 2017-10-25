@@ -129,13 +129,23 @@ func (c *card) SetTheirKey(theirKey *shamir3pass.Key) error {
 	if theirKey == nil {
 		return fmt.Errorf("Cannot set theirKey as nil")
 	}
+	c.theirKey = theirKey
 	return nil
 }
 
 // Validate checks the card's internal consistency. In order to be called,
 // mykey, theirKey, and both need to be set. It will not return an error
 // if the card is internally consistent.
-func (c *card) Validate() error { return nil }
+func (c *card) Validate() error {
+	if c.both == nil {
+		return fmt.Errorf("Missing required field both")
+	} else if c.myKey == nil {
+		return fmt.Errorf("Missing required field myKey")
+	} else if c.theirKey == nil {
+		return fmt.Errorf("Missing required field theirKey")
+	}
+	return nil
+}
 
 func (c *card) String() string {
 	return fmt.Sprintf("mine: %v\ntheirs:%v\nboth:%v\nface:%s", c.mine, c.theirs, c.both, c.face)

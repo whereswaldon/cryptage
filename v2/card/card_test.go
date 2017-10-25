@@ -1,6 +1,7 @@
 package card_test
 
 import (
+	"fmt"
 	"github.com/sorribas/shamir3pass"
 	"math/big"
 
@@ -194,11 +195,13 @@ var _ = Describe("Card", func() {
 				k1, _ := getKeyPair()
 				_, k2 := getKeyPair()
 				their := EncryptString("test", k2)
+				both := shamir3pass.Encrypt(their, *k1)
 				mine := EncryptString("test", k1)
-				card, _ := CardFromTheirs(their, k1)
+				card, _ := CardFromBoth(both, k1)
 				card.SetTheirKey(k2)
 				card.SetMine(mine)
 				err := card.Validate()
+				fmt.Fprintf(GinkgoWriter, "Err: %v", err)
 				Expect(err).ToNot(BeNil())
 			})
 		})
