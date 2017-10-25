@@ -8,12 +8,12 @@ import (
 	. "github.com/whereswaldon/cryptage/v2/types"
 )
 
-func EncryptString(s string, k *shamir3pass.Key) *big.Int {
+func EncryptString(s CardFace, k *shamir3pass.Key) *big.Int {
 	return shamir3pass.Encrypt(big.NewInt(0).SetBytes([]byte(s)), *k)
 }
 
-func DecryptString(i *big.Int, k *shamir3pass.Key) string {
-	return string(shamir3pass.Decrypt(i, *k).Bytes())
+func DecryptString(i *big.Int, k *shamir3pass.Key) CardFace {
+	return CardFace(shamir3pass.Decrypt(i, *k).Bytes())
 }
 
 // NewCard creates an entirely new card from the given face
@@ -21,7 +21,7 @@ func DecryptString(i *big.Int, k *shamir3pass.Key) string {
 // both a Face() and a Mine() value, but Both() and Theirs()
 // will results in errors because the card has not been
 // encrypted by another party.
-func NewCard(face string, myKey *shamir3pass.Key) (Card, error) {
+func NewCard(face CardFace, myKey *shamir3pass.Key) (Card, error) {
 	if face == "" {
 		return nil, fmt.Errorf("Unable to create card with empty string as face")
 	} else if myKey == nil {
@@ -56,7 +56,7 @@ func CardFromBoth(both *big.Int, myKey *shamir3pass.Key) (Card, error) {
 
 type card struct {
 	myKey, theirKey    *shamir3pass.Key
-	face               string
+	face               CardFace
 	mine, theirs, both *big.Int
 }
 
@@ -66,7 +66,7 @@ var _ Card = &card{}
 // Face returns the face of the card if it is known or can be computed locally.
 // If neither the face nor mine fields are populated, the opponent must consent
 // to decrypt the card, which is handled elsewhere.
-func (c *card) Face() (string, error) {
+func (c *card) Face() (CardFace, error) {
 	if c.face != "" {
 		return c.face, nil
 	} else if c.mine != nil {

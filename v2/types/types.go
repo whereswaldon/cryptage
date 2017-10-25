@@ -5,11 +5,13 @@ import (
 	"math/big"
 )
 
+type CardFace string
+
 // Card represents a single card with methods to
 // find the face of the card and each permutation
 // of its encrypted state.
 type Card interface {
-	Face() (string, error)
+	Face() (CardFace, error)
 	Mine() (*big.Int, error)
 	Theirs() (*big.Int, error)
 	Both() (*big.Int, error)
@@ -17,4 +19,12 @@ type Card interface {
 	SetTheirKey(*shamir3pass.Key) error
 	HasTheirKey() bool
 	Validate() error
+}
+
+type CardHolder interface {
+	SetFaces([]CardFace)
+	Get(uint) CardFace
+	SetTheirEncrypted([]*big.Int)
+	SetBothEncrypted([]*big.Int)
+	Shuffle()
 }
