@@ -19,7 +19,7 @@ func NewCard(face string, myKey *shamir3pass.Key) (Card, error) {
 	} else if myKey == nil {
 		return nil, fmt.Errorf("Unable to create card with nil key pointer")
 	}
-	return &card{}, nil
+	return &card{myKey: myKey, face: face}, nil
 }
 
 // CardFrom creates a card from the given big integer. This
@@ -37,16 +37,31 @@ func CardFromBoth(both *big.Int, myKey *shamir3pass.Key) (Card, error) {
 }
 
 type card struct {
+	myKey              *shamir3pass.Key
+	face               string
+	mine, theirs, both *big.Int
 }
 
 // ensure that the card type always satisfies the Card interface
 var _ Card = &card{}
 
+// Face returns the face of the card if it is known or can be computed locally.
+// If neither the face nor mine fields are populated, the opponent must consent
+// to decrypt the card, which is handled elsewhere.
 func (c *card) Face() (string, error) {
-	return "", nil
+	if c.face != "" {
+		return c.face, nil
+	} else if c.mine != nil {
+		c.face = string(shamir3pass.Decrypt(c.mine, *c.myKey).Bytes())
+		return c.face, nil
+	}
+	return "", fmt.Errorf("Unable to view card face, need other player to decrypt card: %v", c)
 }
 func (c *card) Mine() (*big.Int, error) {
-	return nil, nil
+	if c.mine != nil {
+		return c.mine, nil
+	}
+	return nil, fmt.Errorf("Unable to get card solely encrypted by local player: %v", c)
 }
 func (c *card) Theirs() (*big.Int, error) {
 	return nil, nil

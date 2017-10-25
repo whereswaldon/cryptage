@@ -26,11 +26,15 @@ var _ = Describe("Card", func() {
 			})
 		})
 		Context("Where both arguments are valid", func() {
-			It("Should return a card and no error", func() {
+			It("Should return a card with a valid Face and Mine"+
+				"value and no error", func() {
 				key := shamir3pass.GenerateKey(1024)
 				card, err := NewCard("test", &key)
 				Expect(err).To(BeNil())
 				Expect(card).ToNot(BeNil())
+				face, err := card.Face()
+				Expect(err).To(BeNil())
+				Expect(face).ToNot(BeEmpty())
 			})
 		})
 	})
