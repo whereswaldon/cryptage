@@ -17,11 +17,11 @@ func getKeyPair() (*shamir3pass.Key, *shamir3pass.Key) {
 	return &key1, &key2
 }
 
-func encryptString(s string, k *shamir3pass.Key) *big.Int {
+func EncryptString(s string, k *shamir3pass.Key) *big.Int {
 	return shamir3pass.Encrypt(big.NewInt(0).SetBytes([]byte(s)), *k)
 }
 
-func decryptString(i *big.Int, k *shamir3pass.Key) string {
+func DecryptString(i *big.Int, k *shamir3pass.Key) string {
 	return string(shamir3pass.Decrypt(i, *k).Bytes())
 }
 
@@ -126,7 +126,7 @@ var _ = Describe("Card", func() {
 		Context("Where the mine value is nil", func() {
 			It("Should return an error", func() {
 				k1, k2 := getKeyPair()
-				their := encryptString("test", k2)
+				their := EncryptString("test", k2)
 				card, _ := CardFromTheirs(their, k1)
 				err := card.SetMine(nil)
 				Expect(err).ToNot(BeNil())
@@ -135,10 +135,34 @@ var _ = Describe("Card", func() {
 		Context("Where the mine value is valid", func() {
 			It("Should return no error", func() {
 				k1, k2 := getKeyPair()
-				their := encryptString("test", k2)
-				mine := encryptString("test", k1)
+				their := EncryptString("test", k2)
+				mine := EncryptString("test", k1)
 				card, _ := CardFromTheirs(their, k1)
 				err := card.SetMine(mine)
+				Expect(err).To(BeNil())
+				m2, err := card.Mine()
+				Expect(m2).ToNot(BeNil())
+				Expect(err).To(BeNil())
+			})
+		})
+	})
+	Describe("Setting the opponent's key  on a card", func() {
+		Context("Where the key is nil", func() {
+			It("Should return an error", func() {
+				k1, k2 := getKeyPair()
+				their := EncryptString("test", k2)
+				card, _ := CardFromTheirs(their, k1)
+				err := card.SetTheirKey(nil)
+				Expect(err).ToNot(BeNil())
+			})
+		})
+		Context("Where the mine value is valid", func() {
+			It("Should return no error", func() {
+				k1, k2 := getKeyPair()
+				their := EncryptString("test", k2)
+				mine := EncryptString("test", k1)
+				card, _ := CardFromTheirs(their, k1)
+				err := card.SetTheirKey(their)
 				Expect(err).To(BeNil())
 				m2, err := card.Mine()
 				Expect(m2).ToNot(BeNil())

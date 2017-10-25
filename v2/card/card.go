@@ -8,6 +8,14 @@ import (
 	. "github.com/whereswaldon/cryptage/v2/types"
 )
 
+func EncryptString(s string, k *shamir3pass.Key) *big.Int {
+	return shamir3pass.Encrypt(big.NewInt(0).SetBytes([]byte(s)), *k)
+}
+
+func DecryptString(i *big.Int, k *shamir3pass.Key) string {
+	return string(shamir3pass.Decrypt(i, *k).Bytes())
+}
+
 // NewCard creates an entirely new card from the given face
 // value and key. After this operation, the card will have
 // both a Face() and a Mine() value, but Both() and Theirs()
@@ -62,7 +70,7 @@ func (c *card) Face() (string, error) {
 	if c.face != "" {
 		return c.face, nil
 	} else if c.mine != nil {
-		c.face = string(shamir3pass.Decrypt(c.mine, *c.myKey).Bytes())
+		c.face = DecryptString(c.mine, c.myKey)
 		return c.face, nil
 	}
 	return "", fmt.Errorf("Unable to view card face, need other player to decrypt card: %v", c)
@@ -74,7 +82,7 @@ func (c *card) Mine() (*big.Int, error) {
 	if c.mine != nil {
 		return c.mine, nil
 	} else if c.face != "" {
-		c.mine = shamir3pass.Encrypt(big.NewInt(0).SetBytes([]byte(c.face)), *c.myKey)
+		c.mine = EncryptString(c.face, c.myKey)
 		return c.mine, nil
 	}
 	return nil, fmt.Errorf("Unable to get card solely encrypted by local player: %v", c)
