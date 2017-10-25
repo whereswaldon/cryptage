@@ -158,4 +158,61 @@ var _ = Describe("Card", func() {
 			})
 		})
 	})
+	Describe("Validating a card", func() {
+		Context("Where the opponent's key is nil", func() {
+			It("Should return an error", func() {
+				k1, k2 := getKeyPair()
+				their := EncryptString("test", k2)
+				card, _ := CardFromTheirs(their, k1)
+				err := card.Validate()
+				Expect(err).ToNot(BeNil())
+			})
+		})
+		Context("Where the both value is nil", func() {
+			It("Should return an error", func() {
+				k1, k2 := getKeyPair()
+				card, _ := NewCard("test", k1)
+				err := card.SetTheirKey(k2)
+				Expect(err).ToNot(BeNil())
+			})
+		})
+		Context("Where all required values are present and the card is invalid", func() {
+			It("Should return an error", func() {
+				k1, k2 := getKeyPair()
+				their := EncryptString("test", k2)
+				fakeMine := EncryptString("test2", k1)
+				card, _ := CardFromTheirs(their, k1)
+				card.SetTheirKey(k2)
+				card.SetMine(fakeMine)
+				err := card.Validate()
+				Expect(err).ToNot(BeNil())
+			})
+		})
+		Context("Where all required values are present and the keys are"+
+			" unrelated", func() {
+			It("Should return an error", func() {
+				k1, _ := getKeyPair()
+				_, k2 := getKeyPair()
+				their := EncryptString("test", k2)
+				mine := EncryptString("test", k1)
+				card, _ := CardFromTheirs(their, k1)
+				card.SetTheirKey(k2)
+				card.SetMine(mine)
+				err := card.Validate()
+				Expect(err).ToNot(BeNil())
+			})
+		})
+		Context("Where all required values are present and the card is valid", func() {
+			It("Should return no error", func() {
+				k1, k2 := getKeyPair()
+				their := EncryptString("test", k2)
+				mine := EncryptString("test", k1)
+				card, _ := CardFromTheirs(their, k1)
+				card.SetTheirKey(k2)
+				card.SetMine(mine)
+				err := card.Validate()
+				Expect(err).To(BeNil())
+			})
+		})
+	})
 })
