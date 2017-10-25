@@ -148,6 +148,18 @@ func (c *card) Validate() error {
 	} else if c.theirKey == nil {
 		return fmt.Errorf("Missing required field theirKey")
 	}
+	theirs := shamir3pass.Decrypt(c.both, *c.myKey)
+	if c.theirs != nil && c.theirs.Cmp(theirs) != 0 {
+		return fmt.Errorf("Decrypted value mismatch: stored theirs: %v, computed theirs: %v", c.theirs, theirs)
+	}
+	mine := shamir3pass.Decrypt(c.both, *c.theirKey)
+	if c.mine != nil && c.mine.Cmp(mine) != 0 {
+		return fmt.Errorf("Decrypted value mismatch: stored mine: %v, computed mine: %v", c.theirs, theirs)
+	}
+	face := DecryptString(mine, c.myKey)
+	if c.face != "" && c.face != face {
+		return fmt.Errorf("Decrypted faces do not match: stored face: %s, computed face: %s", c.face, face)
+	}
 	return nil
 }
 
