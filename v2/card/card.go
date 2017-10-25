@@ -26,7 +26,12 @@ func NewCard(face string, myKey *shamir3pass.Key) (Card, error) {
 // assumes that the provided integer is the encrypted value
 // of the card provided by another player.
 func CardFromTheirs(theirs *big.Int, myKey *shamir3pass.Key) (Card, error) {
-	return nil, nil
+	if theirs == nil {
+		return nil, fmt.Errorf("Unable to create card from nil encrypted value")
+	} else if myKey == nil {
+		return nil, fmt.Errorf("Unable to create card with nil key pointer")
+	}
+	return &card{myKey: myKey, theirs: theirs}, nil
 }
 
 // CardFromBoth creats a card from the given big integer. This
@@ -63,6 +68,9 @@ func (c *card) Face() (string, error) {
 func (c *card) Mine() (*big.Int, error) {
 	if c.mine != nil {
 		return c.mine, nil
+	} else if c.face != "" {
+		c.mine = shamir3pass.Encrypt(big.NewInt(0).SetBytes([]byte(c.face)), *c.myKey)
+		return c.mine, nil
 	}
 	return nil, fmt.Errorf("Unable to get card solely encrypted by local player: %v", c)
 }
@@ -70,12 +78,24 @@ func (c *card) Mine() (*big.Int, error) {
 // Theirs returns the card's face encrypted solely by the opponent's key,
 // if possible.
 func (c *card) Theirs() (*big.Int, error) {
-	return nil, nil
+	if c.theirs != nil {
+		return c.theirs, nil
+	} else if c.both != nil {
+		c.theirs = shamir3pass.Decrypt(c.both, *c.myKey)
+		return c.theirs, nil
+	}
+	return nil, fmt.Errorf("Unable to get card solely encrypted with opponent's key: %v", c)
 }
 
 // Both returns the card's face encrypted with the keys of both players.
 func (c *card) Both() (*big.Int, error) {
-	return nil, nil
+	if c.both != nil {
+		return c.both, nil
+	} else if c.theirs != nil {
+		c.both = shamir3pass.Encrypt(c.theirs, *c.myKey)
+		return c.both, nil
+	}
+	return nil, fmt.Errorf("Unable to get card encrypted with both player's keys: %v", c)
 }
 
 func (c *card) String() string {
