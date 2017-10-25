@@ -10,6 +10,21 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func getKeyPair() (*shamir3pass.Key, *shamir3pass.Key) {
+	prime := shamir3pass.Random1024BitPrime()
+	key1 := shamir3pass.GenerateKeyFromPrime(prime)
+	key2 := shamir3pass.GenerateKeyFromPrime(prime)
+	return &key1, &key2
+}
+
+func encryptString(s string, k *shamir3pass.Key) *big.Int {
+	return shamir3pass.Encrypt(big.NewInt(0).SetBytes([]byte(s)), *k)
+}
+
+func decryptString(i *big.Int, k *shamir3pass.Key) string {
+	return string(shamir3pass.Decrypt(i, *k).Bytes())
+}
+
 var _ = Describe("Card", func() {
 	Describe("Creating a Card from a string", func() {
 		Context("Where the string is empty", func() {
@@ -29,7 +44,7 @@ var _ = Describe("Card", func() {
 		})
 		Context("Where both arguments are valid", func() {
 			It("Should return a card with a valid Face and Mine"+
-				"value and no error", func() {
+				" value and no error", func() {
 				key := shamir3pass.GenerateKey(1024)
 				card, err := NewCard("test", &key)
 				Expect(err).To(BeNil())
@@ -61,7 +76,7 @@ var _ = Describe("Card", func() {
 		})
 		Context("Where both arguments are valid", func() {
 			It("Should return a card with a valid Theirs and Both"+
-				"value and no error", func() {
+				" value and no error", func() {
 				key := shamir3pass.GenerateKey(1024)
 				card, err := CardFromTheirs(big.NewInt(0), &key)
 				Expect(err).To(BeNil())
@@ -93,7 +108,7 @@ var _ = Describe("Card", func() {
 		})
 		Context("Where both arguments are valid", func() {
 			It("Should return a card with a valid Theirs and Both"+
-				"value and no error", func() {
+				" value and no error", func() {
 				key := shamir3pass.GenerateKey(1024)
 				card, err := CardFromBoth(big.NewInt(0), &key)
 				Expect(err).To(BeNil())
@@ -104,6 +119,30 @@ var _ = Describe("Card", func() {
 				both, err := card.Both()
 				Expect(err).To(BeNil())
 				Expect(both).ToNot(BeNil())
+			})
+		})
+	})
+	Describe("Setting the mine value on a card", func() {
+		Context("Where the mine value is nil", func() {
+			It("Should return an error", func() {
+				k1, k2 := getKeyPair()
+				their := encryptString("test", k2)
+				card, _ := CardFromTheirs(their, k1)
+				err := card.SetMine(nil)
+				Expect(err).ToNot(BeNil())
+			})
+		})
+		Context("Where the mine value is valid", func() {
+			It("Should return no error", func() {
+				k1, k2 := getKeyPair()
+				their := encryptString("test", k2)
+				mine := encryptString("test", k1)
+				card, _ := CardFromTheirs(their, k1)
+				err := card.SetMine(mine)
+				Expect(err).To(BeNil())
+				m2, err := card.Mine()
+				Expect(m2).ToNot(BeNil())
+				Expect(err).To(BeNil())
 			})
 		})
 	})

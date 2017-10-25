@@ -47,7 +47,7 @@ func CardFromBoth(both *big.Int, myKey *shamir3pass.Key) (Card, error) {
 }
 
 type card struct {
-	myKey              *shamir3pass.Key
+	myKey, theirKey    *shamir3pass.Key
 	face               string
 	mine, theirs, both *big.Int
 }
@@ -102,6 +102,29 @@ func (c *card) Both() (*big.Int, error) {
 	}
 	return nil, fmt.Errorf("Unable to get card encrypted with both player's keys: %v", c)
 }
+
+// SetMine gives the card the value of a card face encrypted solely with
+// the current player's key. This value is set and trusted implicitly,
+// but can be validated if you use SetTheirKey and Validate on the card
+// at a later time.
+func (c *card) SetMine(mine *big.Int) error {
+	if mine == nil {
+		return fmt.Errorf("Cannot set nil as mine value")
+	}
+	c.mine = mine
+	return nil
+}
+
+// SetTheirKey gives the card the key that the opponent used to perform
+// their side of the encryption. It returns and error if the key is invalid.
+func (c *card) SetTheirKey(theirKey *shamir3pass.Key) error {
+	return nil
+}
+
+// Validate checks the card's internal consistency. In order to be called,
+// mykey, theirKey, and both need to be set. It will not return an error
+// if the card is internally consistent.
+func (c *card) Validate() error { return nil }
 
 func (c *card) String() string {
 	return fmt.Sprintf("mine: %v\ntheirs:%v\nboth:%v\nface:%s", c.mine, c.theirs, c.both, c.face)
