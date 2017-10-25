@@ -5,7 +5,7 @@ import (
 )
 
 // Cards is the deck of cards for this game. It can be overriden to use any card deck
-var Cards []string = []string{"ACE", "KING", "QUEEN"}
+var Cards []string = []string{"ACE"}
 
 // card represents a single card in a deck. The members correspond with:
 // p1cipher - face of card encrypted only with "player 1's" key
@@ -13,8 +13,8 @@ var Cards []string = []string{"ACE", "KING", "QUEEN"}
 // bothCipher - face of card encrypted with both keys
 // plain - face of card in plaintext
 type card struct {
-	P1cipher, P2cipher, BothCipher *big.Int
-	plain                          string
+	MyCipher, TheirCipher, BothCipher *big.Int
+	plain                             string
 }
 
 func (c *card) Face() string {

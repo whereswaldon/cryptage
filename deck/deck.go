@@ -27,6 +27,7 @@ type deck struct {
 // Draw draws a single card from the deck
 func (d *deck) Draw() (string, error) {
 	d.protocol.RequestDecryptCard(0)
+	fmt.Printf("Requesting decryption of card:\n%v\n", d.cards[0].BothCipher)
 	return "", nil
 }
 
@@ -47,9 +48,11 @@ func (d *deck) Play() {
 // plaintext to a player1 ciphertext
 func (d *deck) initEncryptCards() {
 	for i := range d.cards {
-		d.cards[i].P1cipher = shamir.Encrypt(big.NewInt(0).SetBytes([]byte(Cards[i])), d.keys)
+		d.cards[i].MyCipher = shamir.Encrypt(big.NewInt(0).SetBytes([]byte(Cards[i])), d.keys)
+		fmt.Printf("Layer1: %d: %s -> %v -> %s\n", i, Cards[i],
+			d.cards[i].MyCipher, string(shamir.Decrypt(d.cards[i].MyCipher, d.keys).Bytes()))
 	}
-	fmt.Println(d.cards)
+	//	fmt.Println(d.cards)
 }
 
 // encryptCards takes a deck with player1 ciphertext populated and
@@ -57,24 +60,26 @@ func (d *deck) initEncryptCards() {
 // ciphertext.
 func (d *deck) encryptCards() {
 	for i, c := range d.cards {
-		d.cards[i].BothCipher = shamir.Encrypt(c.P1cipher, d.keys)
+		d.cards[i].BothCipher = shamir.Encrypt(c.MyCipher, d.keys)
+		fmt.Printf("Layer2: %d: %v -> %v -> %v\n", i, c.MyCipher,
+			d.cards[i].BothCipher, shamir.Decrypt(d.cards[i].BothCipher, d.keys))
 	}
-	fmt.Println(d.cards)
+	//	fmt.Println(d.cards)
 }
 
-// setPlayer1Ciphers sets the ciphertext of the deck to the provided
+// setMyCiphers sets the ciphertext of the deck to the provided
 // array
-func (d *deck) setPlayer1Ciphers(ciphers []*big.Int) {
+func (d *deck) setMyCiphers(ciphers []*big.Int) {
 	for i, c := range ciphers {
-		d.cards[i].P1cipher = c
+		d.cards[i].MyCipher = c
 	}
 }
 
-// clearPlayer1Ciphers erases old ciphertext
+// clearMyCiphers erases old ciphertext
 func (d *deck) clearDeck() {
 	for i := range d.cards {
-		d.cards[i].P1cipher = nil
-		d.cards[i].P2cipher = nil
+		d.cards[i].MyCipher = nil
+		d.cards[i].TheirCipher = nil
 		d.cards[i].BothCipher = nil
 		d.cards[i].plain = ""
 	}
@@ -83,10 +88,10 @@ func (d *deck) clearDeck() {
 // decryptCard removes the current player's encryption, leaving
 // only the other player's encryption layer.
 func (d *deck) decryptCard(index uint64) {
-	if d.cards[index].P1cipher != nil {
+	if d.cards[index].TheirCipher != nil {
 		return
 	}
-	d.cards[index].P1cipher = shamir.Decrypt(d.cards[index].BothCipher, d.keys)
+	d.cards[index].TheirCipher = shamir.Decrypt(d.cards[index].BothCipher, d.keys)
 }
 
 // revealCard removes the current player's encryption from a card,
@@ -97,9 +102,9 @@ func (d *deck) revealCard(index uint64) {
 	}
 
 	//todo check whether the p2cipher is null
-	plainBigInt := shamir.Decrypt(d.cards[index].P2cipher, d.keys)
+	plainBigInt := shamir.Decrypt(d.cards[index].MyCipher, d.keys)
 	d.cards[index].plain = string(plainBigInt.Bytes())
-	fmt.Println("Revealed: ", d.cards[index].plain, d.cards[index].P2cipher)
+	fmt.Println("Revealed: ", d.cards[index].plain, d.cards[index].MyCipher)
 }
 
 // setBothCiphers sets the ciphertext of the deck to the provided
@@ -118,7 +123,8 @@ func (d *deck) handleMessages() {
 			return
 		case START_DECK:
 			fmt.Println("START_DECK")
-			d.setPlayer1Ciphers(msg.Deck)
+			d.keys = shamir.GenerateKeyFromPrime(msg.Value)
+			d.setMyCiphers(msg.Deck)
 			d.encryptCards()
 			d.protocol.SendEndDeck(d.cards)
 		case END_DECK:
@@ -132,11 +138,11 @@ func (d *deck) handleMessages() {
 		case DECRYPT_CARD:
 			fmt.Println("DECRYPT_CARD")
 			d.decryptCard(msg.Index)
-			fmt.Println("decrypted", d.cards[msg.Index].P1cipher)
-			d.protocol.SendDecryptedCard(msg.Index, d.cards[msg.Index].P1cipher)
+			fmt.Println("decrypted", d.cards[msg.Index].TheirCipher)
+			d.protocol.SendDecryptedCard(msg.Index, d.cards[msg.Index].TheirCipher)
 		case ONE_CIPHER_CARD:
 			fmt.Println("ONE_CIPHER_CARD")
-			d.cards[msg.Index].P2cipher = msg.Value
+			d.cards[msg.Index].MyCipher = msg.Value
 			d.revealCard(msg.Index)
 		default:
 			fmt.Println("Unknown message: %v", msg)
@@ -146,8 +152,10 @@ func (d *deck) handleMessages() {
 
 // Start runs the game, and initiates the first hand
 func (d *deck) Start() error {
+	prime := shamir.Random1024BitPrime()
+	d.keys = shamir.GenerateKeyFromPrime(prime)
 	d.initEncryptCards()
-	if err := d.protocol.SendStartDeck(d.cards); err != nil {
+	if err := d.protocol.SendStartDeck(prime, d.cards); err != nil {
 		return err
 	}
 	//	if err := d.protocol.SendQuit(); err != nil {
@@ -170,7 +178,6 @@ func NewDeck(deckConnection io.ReadWriteCloser) (Deck, error) {
 	}
 	d.done = done
 	d.protocol = p
-	d.keys = shamir.GenerateKey(128)
 	d.cards = make([]card, len(Cards))
 
 	return d, nil

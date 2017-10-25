@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"time"
 )
 
 const (
@@ -89,7 +90,9 @@ func listen(address string) {
 	fmt.Println("Playing game")
 	deck.Play()
 	fmt.Println("Playing...")
+	time.Sleep(2 * time.Second)
 	deck.Draw()
 	for {
+		time.Sleep(30 * time.Second)
 	}
 }

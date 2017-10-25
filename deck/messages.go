@@ -70,12 +70,17 @@ func (p *Protocol) SendQuit() error {
 }
 
 // SendStartDeck ships the first encrypted deck state to the other player
-func (p *Protocol) SendStartDeck(encryptedDeck []card) error {
+// along with the large prime number used to generate the encryption keys.
+func (p *Protocol) SendStartDeck(keyPrime *big.Int, encryptedDeck []card) error {
 	intArr := make([]*big.Int, len(encryptedDeck))
 	for i, c := range encryptedDeck {
-		intArr[i] = c.P1cipher
+		intArr[i] = c.MyCipher
 	}
-	return p.w.Encode(Message{Type: START_DECK, Deck: intArr})
+	return p.w.Encode(Message{
+		Type:  START_DECK,
+		Value: keyPrime,
+		Deck:  intArr,
+	})
 }
 
 // SendEndDeck ships the first encrypted deck state to the other player
