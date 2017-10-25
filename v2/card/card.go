@@ -38,7 +38,12 @@ func CardFromTheirs(theirs *big.Int, myKey *shamir3pass.Key) (Card, error) {
 // assumes that the provided integer is the encrypted value
 // after both players have encrypted the card.
 func CardFromBoth(both *big.Int, myKey *shamir3pass.Key) (Card, error) {
-	return nil, nil
+	if both == nil {
+		return nil, fmt.Errorf("Unable to create card from nil encrypted value")
+	} else if myKey == nil {
+		return nil, fmt.Errorf("Unable to create card with nil key pointer")
+	}
+	return &card{myKey: myKey, both: both}, nil
 }
 
 type card struct {

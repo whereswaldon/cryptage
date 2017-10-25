@@ -75,4 +75,36 @@ var _ = Describe("Card", func() {
 			})
 		})
 	})
+	Describe("Creating a Card from both players' encrypted face", func() {
+		Context("Where the encrypted face is nil", func() {
+			It("Should return no card and an error", func() {
+				key := shamir3pass.GenerateKey(1024)
+				card, err := CardFromBoth(nil, &key)
+				Expect(err).ToNot(BeNil())
+				Expect(card).To(BeNil())
+			})
+		})
+		Context("Where the key is empty", func() {
+			It("Should return no card and an error", func() {
+				card, err := CardFromBoth(big.NewInt(0), nil)
+				Expect(err).ToNot(BeNil())
+				Expect(card).To(BeNil())
+			})
+		})
+		Context("Where both arguments are valid", func() {
+			It("Should return a card with a valid Theirs and Both"+
+				"value and no error", func() {
+				key := shamir3pass.GenerateKey(1024)
+				card, err := CardFromBoth(big.NewInt(0), &key)
+				Expect(err).To(BeNil())
+				Expect(card).ToNot(BeNil())
+				theirs, err := card.Theirs()
+				Expect(err).To(BeNil())
+				Expect(theirs).ToNot(BeNil())
+				both, err := card.Both()
+				Expect(err).To(BeNil())
+				Expect(both).ToNot(BeNil())
+			})
+		})
+	})
 })
