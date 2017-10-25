@@ -133,6 +133,10 @@ func (c *card) SetTheirKey(theirKey *shamir3pass.Key) error {
 	return nil
 }
 
+func (c *card) HasTheirKey() bool {
+	return c.theirKey != nil
+}
+
 // Validate checks the card's internal consistency. In order to be called,
 // mykey, theirKey, and both need to be set. It will not return an error
 // if the card is internally consistent.

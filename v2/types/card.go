@@ -15,5 +15,6 @@ type Card interface {
 	Both() (*big.Int, error)
 	SetMine(*big.Int) error
 	SetTheirKey(*shamir3pass.Key) error
+	HasTheirKey() bool
 	Validate() error
 }

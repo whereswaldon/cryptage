@@ -147,6 +147,7 @@ var _ = Describe("Card", func() {
 				card, _ := CardFromTheirs(their, k1)
 				err := card.SetTheirKey(nil)
 				Expect(err).ToNot(BeNil())
+				Expect(card.HasTheirKey()).ToNot(BeTrue())
 			})
 		})
 		Context("Where the mine value is valid", func() {
@@ -156,6 +157,7 @@ var _ = Describe("Card", func() {
 				card, _ := CardFromTheirs(their, k1)
 				err := card.SetTheirKey(k2)
 				Expect(err).To(BeNil())
+				Expect(card.HasTheirKey()).To(BeTrue())
 			})
 		})
 	})
