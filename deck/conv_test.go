@@ -1,7 +1,7 @@
 package deck_test
 
 import (
-	"github.com/whereswaldon/cryptage/deck"
+	//	"github.com/whereswaldon/cryptage/deck"
 	"testing"
 )
 
