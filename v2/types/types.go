@@ -21,10 +21,8 @@ type Card interface {
 	Validate() error
 }
 
+// CardHolder is an ordered collection of cards.
 type CardHolder interface {
-	SetFaces([]CardFace)
-	Get(uint) CardFace
-	SetTheirEncrypted([]*big.Int)
-	SetBothEncrypted([]*big.Int)
-	Shuffle()
+	Get(uint) (CardFace, error)
+	SetBothEncrypted([]*big.Int) error
 }
