@@ -1,7 +1,10 @@
 package card_holder
 
 import (
+	"fmt"
+	"github.com/pkg/errors"
 	"github.com/sorribas/shamir3pass"
+	"github.com/whereswaldon/cryptage/v2/card"
 	"math/big"
 
 	. "github.com/whereswaldon/cryptage/v2/types"
@@ -9,7 +12,22 @@ import (
 
 // NewHolder creates a CardHolder from a key and a slice of card faces
 func NewHolder(key *shamir3pass.Key, faces []CardFace) (CardHolder, error) {
-	return nil, nil
+	if key == nil {
+		return nil, fmt.Errorf("Cannot construct CardHolder with nil key")
+	} else if faces == nil {
+		return nil, fmt.Errorf("Cannot construct CardHolder with nil card faces")
+	} else if len(faces) < 1 {
+		return nil, fmt.Errorf("Cannot construct CardHolder with empty card faces")
+	}
+	cards := make([]Card, len(faces))
+	var err error
+	for i, c := range faces {
+		cards[i], err = card.NewCard(c, key)
+		if err != nil {
+			return nil, errors.Wrap(err, "Error creating card")
+		}
+	}
+	return &holder{cards: cards, key: key}, nil
 }
 
 // HolderFromEncrypted creates a CardHolder from a kay and a slice of card
