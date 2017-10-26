@@ -2,15 +2,15 @@ package card_holder_test
 
 import (
 	"github.com/sorribas/shamir3pass"
+	"github.com/whereswaldon/cryptage/v2/card"
 	. "github.com/whereswaldon/cryptage/v2/card_holder"
-	. "github.com/whereswaldon/cryptage/v2/types"
 	"math/big"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var Faces []CardFace = []CardFace{"ACE", "KING", "QUEEN"}
+var Faces []card.CardFace = []card.CardFace{"ACE", "KING", "QUEEN"}
 var EncryptedFaces []*big.Int = []*big.Int{big.NewInt(0), big.NewInt(1), big.NewInt(2)}
 
 var _ = Describe("CardHolder", func() {
@@ -33,7 +33,7 @@ var _ = Describe("CardHolder", func() {
 		Context("When the faces are empty", func() {
 			It("Should return an error", func() {
 				key := shamir3pass.GenerateKey(1024)
-				faces := make([]CardFace, 0)
+				faces := make([]card.CardFace, 0)
 				holder, err := NewHolder(&key, faces)
 				Expect(err).ToNot(BeNil())
 				Expect(holder).To(BeNil())
@@ -157,7 +157,7 @@ var _ = Describe("CardHolder", func() {
 	Describe("Getting a card face", func() {
 		var encryptedFaces []*big.Int
 		var key shamir3pass.Key
-		var holder, theirHolder CardHolder
+		var holder, theirHolder *CardHolder
 		BeforeEach(func() {
 			key = shamir3pass.GenerateKey(1024)
 			holder, _ = NewHolder(&key, Faces)

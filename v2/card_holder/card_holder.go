@@ -6,12 +6,25 @@ import (
 	"github.com/sorribas/shamir3pass"
 	"github.com/whereswaldon/cryptage/v2/card"
 	"math/big"
-
-	. "github.com/whereswaldon/cryptage/v2/types"
 )
 
+// Card represents a single card with methods to
+// find the face of the card and each permutation
+// of its encrypted state.
+type Card interface {
+	Face() (card.CardFace, error)
+	Mine() (*big.Int, error)
+	Theirs() (*big.Int, error)
+	Both() (*big.Int, error)
+	SetMine(*big.Int) error
+	SetTheirKey(*shamir3pass.Key) error
+	HasTheirKey() bool
+	CanDecrypt() bool
+	Validate() error
+}
+
 // NewHolder creates a CardHolder from a key and a slice of card faces
-func NewHolder(key *shamir3pass.Key, faces []CardFace) (CardHolder, error) {
+func NewHolder(key *shamir3pass.Key, faces []card.CardFace) (*CardHolder, error) {
 	if key == nil {
 		return nil, fmt.Errorf("Cannot construct CardHolder with nil key")
 	} else if faces == nil {
@@ -27,12 +40,12 @@ func NewHolder(key *shamir3pass.Key, faces []CardFace) (CardHolder, error) {
 			return nil, errors.Wrap(err, "Error creating card")
 		}
 	}
-	return &holder{cards: cards, key: key}, nil
+	return &CardHolder{cards: cards, key: key}, nil
 }
 
 // HolderFromEncrypted creates a CardHolder from a kay and a slice of card
 // faces that have already been encrypted.
-func HolderFromEncrypted(key *shamir3pass.Key, theirEncrypted []*big.Int) (CardHolder, error) {
+func HolderFromEncrypted(key *shamir3pass.Key, theirEncrypted []*big.Int) (*CardHolder, error) {
 	if key == nil {
 		return nil, fmt.Errorf("Cannot construct CardHolder with nil key")
 	} else if theirEncrypted == nil {
@@ -48,20 +61,17 @@ func HolderFromEncrypted(key *shamir3pass.Key, theirEncrypted []*big.Int) (CardH
 			return nil, errors.Wrap(err, "Error creating card")
 		}
 	}
-	return &holder{cards: cards, key: key}, nil
+	return &CardHolder{cards: cards, key: key}, nil
 }
 
-type holder struct {
+type CardHolder struct {
 	cards []Card
 	key   *shamir3pass.Key
 }
 
-// ensure that holder implements CardHolder
-var _ CardHolder = &holder{}
-
 // Get returns the card face at the given position within the deck,
 // if possible
-func (h *holder) Get(index uint) (CardFace, error) {
+func (h *CardHolder) Get(index uint) (card.CardFace, error) {
 	if can, err := h.CanGet(index); !can {
 		return "", errors.Wrapf(err, "Unable to get card")
 	}
@@ -70,7 +80,7 @@ func (h *holder) Get(index uint) (CardFace, error) {
 
 // CanGet determines whether it is currently possible to get the card
 // face at the given position.
-func (h *holder) CanGet(index uint) (bool, error) {
+func (h *CardHolder) CanGet(index uint) (bool, error) {
 	if index < uint(len(h.cards)) {
 		return h.cards[index].CanDecrypt(), nil
 	}
@@ -80,7 +90,7 @@ func (h *holder) CanGet(index uint) (bool, error) {
 // SetMine informs the card at the given index that its encrypted state
 // with only the local player's key is the given big.Int. Knowing this
 // value allows a card to be decrypted.
-func (h *holder) SetMine(index uint, mine *big.Int) error {
+func (h *CardHolder) SetMine(index uint, mine *big.Int) error {
 	return nil
 }
 
@@ -89,12 +99,12 @@ func (h *holder) SetMine(index uint, mine *big.Int) error {
 // encrypted by both players. This does not erase the encryption key stored
 // within the collection (which is important, since this is needed to decrypt
 // cards later)
-func (h *holder) SetBothEncrypted(encryptedFaces []*big.Int) error {
+func (h *CardHolder) SetBothEncrypted(encryptedFaces []*big.Int) error {
 	if encryptedFaces == nil {
 		return fmt.Errorf("Cannot set both encrypted to nil slice")
 	} else if len(encryptedFaces) != len(h.cards) {
 		return fmt.Errorf("Cannot set both encrypted to slice of length %d"+
-			" when cardholder has %d cards", len(encryptedFaces),
+			" when cardCardHolder has %d cards", len(encryptedFaces),
 			len(h.cards))
 	}
 	var err error
@@ -111,7 +121,7 @@ func (h *holder) SetBothEncrypted(encryptedFaces []*big.Int) error {
 
 // GetAllMine returns all known mine values for the cards. If all cards had known
 // values, the second return value will be true.
-func (h *holder) GetAllMine() ([]*big.Int, bool, error) {
+func (h *CardHolder) GetAllMine() ([]*big.Int, bool, error) {
 	cards := make([]*big.Int, len(h.cards))
 	allDecryptable := true
 	var err error
