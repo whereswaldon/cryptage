@@ -33,7 +33,22 @@ func NewHolder(key *shamir3pass.Key, faces []CardFace) (CardHolder, error) {
 // HolderFromEncrypted creates a CardHolder from a kay and a slice of card
 // faces that have already been encrypted.
 func HolderFromEncrypted(key *shamir3pass.Key, theirEncrypted []*big.Int) (CardHolder, error) {
-	return nil, nil
+	if key == nil {
+		return nil, fmt.Errorf("Cannot construct CardHolder with nil key")
+	} else if theirEncrypted == nil {
+		return nil, fmt.Errorf("Cannot construct CardHolder with nil encrypted faces")
+	} else if len(theirEncrypted) < 1 {
+		return nil, fmt.Errorf("Cannot construct CardHolder with empty encrypted faces")
+	}
+	cards := make([]Card, len(theirEncrypted))
+	var err error
+	for i, c := range theirEncrypted {
+		cards[i], err = card.CardFromTheirs(c, key)
+		if err != nil {
+			return nil, errors.Wrap(err, "Error creating card")
+		}
+	}
+	return &holder{cards: cards, key: key}, nil
 }
 
 type holder struct {
