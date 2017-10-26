@@ -20,6 +20,7 @@ type Card interface {
 	SetTheirKey(*shamir3pass.Key) error
 	HasTheirKey() bool
 	CanDecrypt() bool
+	HasEncrypted() bool
 	Validate() error
 }
 
@@ -91,10 +92,47 @@ func (h *CardHolder) CanGet(index uint) (bool, error) {
 	return false, fmt.Errorf("Index %d out of bounds (%d cards)", index, len(h.cards))
 }
 
+// GetTheirs returns the card at the given position, but only encrypted with
+// the opponent's key.
+func (h *CardHolder) GetTheirs(index uint) (*big.Int, error) {
+	if can, err := h.CanGetTheirs(index); !can {
+		if err != nil {
+			return nil, errors.Wrapf(err, "Unable to get card")
+		} else {
+			return nil, fmt.Errorf("Unable to get card %d", index)
+		}
+	}
+	return h.cards[index].Theirs()
+}
+
+// CanGetTheirs determines whether it is currently possible to get the card
+// face at the given position.
+func (h *CardHolder) CanGetTheirs(index uint) (bool, error) {
+	if index < uint(len(h.cards)) {
+		return h.cards[index].HasEncrypted(), nil
+	}
+	return false, fmt.Errorf("Index %d out of bounds (%d cards)", index, len(h.cards))
+}
+
 // SetMine informs the card at the given index that its encrypted state
 // with only the local player's key is the given big.Int. Knowing this
 // value allows a card to be decrypted.
 func (h *CardHolder) SetMine(index uint, mine *big.Int) error {
+	if index < uint(len(h.cards)) {
+		return h.cards[index].SetMine(mine)
+	}
+	return fmt.Errorf("Index %d out of bounds (max %d)", index, len(h.cards))
+}
+
+func (h *CardHolder) SetTheirKey(key *shamir3pass.Key) error {
+	if key == nil {
+		return fmt.Errorf("Key cannot be nil")
+	}
+	for i := range h.cards {
+		if err := h.cards[i].SetTheirKey(key); err != nil {
+			return errors.Wrapf(err, "Unable to set key on index %d", i)
+		}
+	}
 	return nil
 }
 
@@ -140,4 +178,33 @@ func (h *CardHolder) GetAllMine() ([]*big.Int, bool, error) {
 		}
 	}
 	return cards, allDecryptable, nil
+}
+
+// GetAllBoth returns all known doubly-encrypted values for the cards. If all cards had known
+// values, the second return value will be true.
+func (h *CardHolder) GetAllBoth() ([]*big.Int, bool, error) {
+	cards := make([]*big.Int, len(h.cards))
+	allEncryptable := true
+	var err error
+	for i, c := range h.cards {
+		if c.HasEncrypted() {
+			cards[i], err = c.Both()
+			if err != nil {
+				return cards, false, err
+			}
+		} else {
+			allEncryptable = false
+		}
+	}
+	return cards, allEncryptable, nil
+}
+
+// ValidateAll checks that all cards are internally consistent, if it is possible
+func (h *CardHolder) ValidateAll() error {
+	for i, c := range h.cards {
+		if err := c.Validate(); err != nil {
+			return errors.Wrapf(err, "Failed to validate all cards at index %d", i)
+		}
+	}
+	return nil
 }

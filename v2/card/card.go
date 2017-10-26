@@ -143,6 +143,12 @@ func (c *Card) CanDecrypt() bool {
 		(c.HasTheirKey() && (c.both != nil || c.theirs != nil))
 }
 
+// HasEncrypted returns whether the Card has a double-encrypted version
+func (c *Card) HasEncrypted() bool {
+	_, err := c.Both()
+	return err == nil
+}
+
 // Validate checks the Card's internal consistency. In order to be called,
 // mykey, theirKey, and both need to be set. It will not return an error
 // if the Card is internally consistent.
