@@ -65,6 +65,19 @@ func (h *holder) Get(index uint) (CardFace, error) {
 	return "", nil
 }
 
+// CanGet determines whether it is currently possible to get the card
+// face at the given position.
+func (h *holder) CanGet(index uint) (bool, error) {
+	return false, nil
+}
+
+// SetMine informs the card at the given index that its encrypted state
+// with only the local player's key is the given big.Int. Knowing this
+// value allows a card to be decrypted.
+func (h *holder) SetMine(index uint, mine *big.Int) error {
+	return nil
+}
+
 // SetBothEncrypted erases the current cards within the deck and creates
 // a new deck of cards with the given values as the values that have been
 // encrypted by both players. This does not erase the encryption key stored
@@ -88,4 +101,24 @@ func (h *holder) SetBothEncrypted(encryptedFaces []*big.Int) error {
 	}
 	h.cards = newCards
 	return nil
+}
+
+// GetAllMine returns all known mine values for the cards. If all cards had known
+// values, the second return value will be true.
+func (h *holder) GetAllMine() ([]*big.Int, bool, error) {
+	cards := make([]*big.Int, len(h.cards))
+	allDecryptable := true
+	var err error
+	for i, c := range h.cards {
+		if c.CanDecrypt() {
+			cards[i], err = c.Mine()
+			if err != nil {
+				return cards, false, err
+			}
+		} else {
+			allDecryptable = false
+		}
+	}
+	return cards, allDecryptable, nil
+
 }

@@ -18,6 +18,7 @@ type Card interface {
 	SetMine(*big.Int) error
 	SetTheirKey(*shamir3pass.Key) error
 	HasTheirKey() bool
+	CanDecrypt() bool
 	Validate() error
 }
 
@@ -25,4 +26,5 @@ type Card interface {
 type CardHolder interface {
 	Get(uint) (CardFace, error)
 	SetBothEncrypted([]*big.Int) error
+	GetAllMine() ([]*big.Int, bool, error)
 }

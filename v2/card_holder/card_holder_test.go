@@ -124,4 +124,73 @@ var _ = Describe("CardHolder", func() {
 			})
 		})
 	})
+	Describe("Getting the local player's encrypted values for all cards", func() {
+		Context("When the holder has only opponent's encrypted cards", func() {
+			It("Should return an error", func() {
+				key := shamir3pass.GenerateKey(1024)
+				holder, err := HolderFromEncrypted(&key, EncryptedFaces)
+				if err != nil {
+					Skip("Holder failed to construct")
+				}
+				faces, ok, err := holder.GetAllMine()
+				Expect(faces).ToNot(BeNil())
+				Expect(ok).To(BeFalse())
+				Expect(err).To(BeNil())
+			})
+		})
+		Context("When holder has the right faces", func() {
+			It("Should return the faces", func() {
+				key := shamir3pass.GenerateKey(1024)
+				holder, err := NewHolder(&key, Faces)
+				if err != nil {
+					Skip("Holder failed to construct")
+				}
+				faces, ok, err := holder.GetAllMine()
+				Expect(faces).ToNot(BeNil())
+				Expect(faces).ToNot(BeEmpty())
+				Expect(ok).To(BeTrue())
+				Expect(err).To(BeNil())
+
+			})
+		})
+	})
+	Describe("Getting a card face", func() {
+		var encryptedFaces []*big.Int
+		var key shamir3pass.Key
+		var holder CardHolder
+		var err error
+		BeforeEach(func() {
+			key = shamir3pass.GenerateKey(1024)
+			encryptedFaces = make([]*big.Int, len(Faces))
+			holder, err = NewHolder(&key, Faces)
+		})
+		Context("When the index is out of bounds", func() {
+			It("Should return an error", func() {
+				Expect(err).To(BeNil())
+				Expect(holder).ToNot(BeNil())
+				err = holder.SetBothEncrypted([]*big.Int{})
+				Expect(err).ToNot(BeNil())
+			})
+		})
+		Context("When the card can't be decrypted", func() {
+			It("Should return an error", func() {
+				key := shamir3pass.GenerateKey(1024)
+				holder, err := NewHolder(&key, Faces)
+				Expect(err).To(BeNil())
+				Expect(holder).ToNot(BeNil())
+				err = holder.SetBothEncrypted(nil)
+				Expect(err).ToNot(BeNil())
+			})
+		})
+		Context("When the index is valid", func() {
+			It("Should return an error", func() {
+				key := shamir3pass.GenerateKey(1024)
+				holder, err := NewHolder(&key, Faces)
+				Expect(err).To(BeNil())
+				Expect(holder).ToNot(BeNil())
+				err = holder.SetBothEncrypted([]*big.Int{big.NewInt(0)})
+				Expect(err).ToNot(BeNil())
+			})
+		})
+	})
 })

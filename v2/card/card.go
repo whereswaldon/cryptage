@@ -137,6 +137,13 @@ func (c *card) HasTheirKey() bool {
 	return c.theirKey != nil
 }
 
+// CanDecrypt returns whether the card is able to be decrypted in its
+// current state.
+func (c *card) CanDecrypt() bool {
+	return c.face != "" || c.mine != nil ||
+		(c.HasTheirKey() && (c.both != nil || c.theirs != nil))
+}
+
 // Validate checks the card's internal consistency. In order to be called,
 // mykey, theirKey, and both need to be set. It will not return an error
 // if the card is internally consistent.
