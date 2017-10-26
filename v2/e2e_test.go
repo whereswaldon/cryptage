@@ -48,11 +48,14 @@ var _ = Describe("E2e", func() {
 					face, err := p2holder.Get(uint(i))
 					Expect(err).To(BeNil())
 					Expect(Faces).To(ContainElement(face))
-					err = p2holder.SetTheirKey(&key1)
-					Expect(err).To(BeNil())
-					err = p2holder.ValidateAll()
-					Expect(err).To(BeNil())
+
 				}
+
+				// validate all of player2's card integrity
+				err = p2holder.SetTheirKey(&key1)
+				Expect(err).To(BeNil())
+				err = p2holder.ValidateAll()
+				Expect(err).To(BeNil())
 			})
 		})
 	})
