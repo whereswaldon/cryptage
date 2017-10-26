@@ -8,6 +8,8 @@ import (
 
 type CardFace string
 
+const EMPTY_CARD = ""
+
 func EncryptString(s CardFace, k *shamir3pass.Key) *big.Int {
 	return shamir3pass.Encrypt(big.NewInt(0).SetBytes([]byte(s)), *k)
 }

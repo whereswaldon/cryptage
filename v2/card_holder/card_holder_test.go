@@ -168,14 +168,14 @@ var _ = Describe("CardHolder", func() {
 			It("Should return an error", func() {
 				face, err := holder.Get(1024)
 				Expect(err).ToNot(BeNil())
-				Expect(face).To(BeNil())
+				Expect(face).To(BeEquivalentTo(card.EMPTY_CARD))
 			})
 		})
 		Context("When the card can't be decrypted", func() {
 			It("Should return an error", func() {
 				face, err := theirHolder.Get(0)
 				Expect(err).ToNot(BeNil())
-				Expect(face).To(BeNil())
+				Expect(face).To(BeEquivalentTo(card.EMPTY_CARD))
 			})
 		})
 		Context("When the index is valid", func() {
