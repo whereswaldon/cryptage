@@ -71,5 +71,21 @@ func (h *holder) Get(index uint) (CardFace, error) {
 // within the collection (which is important, since this is needed to decrypt
 // cards later)
 func (h *holder) SetBothEncrypted(encryptedFaces []*big.Int) error {
+	if encryptedFaces == nil {
+		return fmt.Errorf("Cannot set both encrypted to nil slice")
+	} else if len(encryptedFaces) != len(h.cards) {
+		return fmt.Errorf("Cannot set both encrypted to slice of length %d"+
+			" when cardholder has %d cards", len(encryptedFaces),
+			len(h.cards))
+	}
+	var err error
+	newCards := make([]Card, len(h.cards))
+	for i, c := range encryptedFaces {
+		newCards[i], err = card.CardFromBoth(c, h.key)
+		if err != nil {
+			return errors.Wrap(err, "Unable to create card from both encrypted face")
+		}
+	}
+	h.cards = newCards
 	return nil
 }

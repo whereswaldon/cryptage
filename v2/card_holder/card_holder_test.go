@@ -119,7 +119,7 @@ var _ = Describe("CardHolder", func() {
 				holder, err := NewHolder(&key, Faces)
 				Expect(err).To(BeNil())
 				Expect(holder).ToNot(BeNil())
-				err = holder.SetBothEncrypted([]*big.Int{})
+				err = holder.SetBothEncrypted(EncryptedFaces)
 				Expect(err).To(BeNil())
 			})
 		})
