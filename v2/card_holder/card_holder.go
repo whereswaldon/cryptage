@@ -62,13 +62,19 @@ var _ CardHolder = &holder{}
 // Get returns the card face at the given position within the deck,
 // if possible
 func (h *holder) Get(index uint) (CardFace, error) {
+	if can, err := h.CanGet(index); !can {
+		return "", errors.Wrapf(err, "Unable to get card")
+	}
 	return "", nil
 }
 
 // CanGet determines whether it is currently possible to get the card
 // face at the given position.
 func (h *holder) CanGet(index uint) (bool, error) {
-	return false, nil
+	if index < uint(len(h.cards)) {
+		return h.cards[index].CanDecrypt(), nil
+	}
+	return false, fmt.Errorf("Index %d out of bounds (%d cards)", index, len(h.cards))
 }
 
 // SetMine informs the card at the given index that its encrypted state
@@ -120,5 +126,4 @@ func (h *holder) GetAllMine() ([]*big.Int, bool, error) {
 		}
 	}
 	return cards, allDecryptable, nil
-
 }

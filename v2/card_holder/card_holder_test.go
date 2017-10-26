@@ -157,39 +157,33 @@ var _ = Describe("CardHolder", func() {
 	Describe("Getting a card face", func() {
 		var encryptedFaces []*big.Int
 		var key shamir3pass.Key
-		var holder CardHolder
-		var err error
+		var holder, theirHolder CardHolder
 		BeforeEach(func() {
 			key = shamir3pass.GenerateKey(1024)
-			encryptedFaces = make([]*big.Int, len(Faces))
-			holder, err = NewHolder(&key, Faces)
+			holder, _ = NewHolder(&key, Faces)
+			encryptedFaces, _, _ = holder.GetAllMine()
+			theirHolder, _ = HolderFromEncrypted(&key, encryptedFaces)
 		})
 		Context("When the index is out of bounds", func() {
 			It("Should return an error", func() {
-				Expect(err).To(BeNil())
-				Expect(holder).ToNot(BeNil())
-				err = holder.SetBothEncrypted([]*big.Int{})
+				face, err := holder.Get(1024)
 				Expect(err).ToNot(BeNil())
+				Expect(face).To(BeNil())
 			})
 		})
 		Context("When the card can't be decrypted", func() {
 			It("Should return an error", func() {
-				key := shamir3pass.GenerateKey(1024)
-				holder, err := NewHolder(&key, Faces)
-				Expect(err).To(BeNil())
-				Expect(holder).ToNot(BeNil())
-				err = holder.SetBothEncrypted(nil)
+				face, err := theirHolder.Get(0)
 				Expect(err).ToNot(BeNil())
+				Expect(face).To(BeNil())
 			})
 		})
 		Context("When the index is valid", func() {
 			It("Should return an error", func() {
-				key := shamir3pass.GenerateKey(1024)
-				holder, err := NewHolder(&key, Faces)
+				face, err := holder.Get(0)
 				Expect(err).To(BeNil())
-				Expect(holder).ToNot(BeNil())
-				err = holder.SetBothEncrypted([]*big.Int{big.NewInt(0)})
-				Expect(err).ToNot(BeNil())
+				Expect(face).ToNot(BeNil())
+				Expect(Faces).To(ContainElement(face))
 			})
 		})
 	})
