@@ -15,6 +15,14 @@ const (
 	ONE_CIPHER_CARD = 4
 )
 
+type ProtocolHandler interface {
+	HandleQuit()
+	HandleStartDeck(deck []*big.Int, prime *big.Int)
+	HandleEndDeck(deck []*big.Int)
+	HandleDecryptCard(index uint64)
+	HandleDecryptedCard(index uint64, card *big.Int)
+}
+
 // Message is a struct representing a request from one deck to another
 type Message struct {
 	Type  uint64
@@ -30,17 +38,19 @@ type Protocol struct {
 	w        *gob.Encoder
 	recieved chan Message
 	done     <-chan struct{}
+	handler  ProtocolHandler
 }
 
 // NewProtocol creates a Protocol instance assuming that the given
 // io.ReadWriteCloser is a connection to another Protocol.
-func NewProtocol(conn io.ReadWriteCloser, done <-chan struct{}) (*Protocol, error) {
+func NewProtocol(conn io.ReadWriteCloser, handler ProtocolHandler, done <-chan struct{}) (*Protocol, error) {
 	messages := make(chan Message)
 	proto := &Protocol{
 		r:        gob.NewDecoder(conn),
 		w:        gob.NewEncoder(conn),
 		recieved: messages,
 		done:     done,
+		handler:  handler,
 	}
 	go func() {
 		defer close(proto.recieved)
@@ -61,6 +71,23 @@ func NewProtocol(conn io.ReadWriteCloser, done <-chan struct{}) (*Protocol, erro
 			}
 		}
 	}()
+	go func() {
+		for msg := range proto.recieved {
+			switch msg.Type {
+			case QUIT:
+				proto.handler.HandleQuit()
+			case START_DECK:
+				proto.handler.HandleStartDeck(msg.Deck, msg.Value)
+			case END_DECK:
+				proto.handler.HandleEndDeck(msg.Deck)
+			case DECRYPT_CARD:
+				proto.handler.HandleDecryptCard(msg.Index)
+			case ONE_CIPHER_CARD:
+				proto.handler.HandleDecryptedCard(msg.Index, msg.Value)
+			default:
+			}
+		}
+	}()
 	return proto, nil
 }
 
@@ -71,10 +98,10 @@ func (p *Protocol) SendQuit() error {
 
 // SendStartDeck ships the first encrypted deck state to the other player
 // along with the large prime number used to generate the encryption keys.
-func (p *Protocol) SendStartDeck(keyPrime *big.Int, encryptedDeck []card) error {
+func (p *Protocol) SendStartDeck(keyPrime *big.Int, encryptedDeck []*big.Int) error {
 	intArr := make([]*big.Int, len(encryptedDeck))
 	for i, c := range encryptedDeck {
-		intArr[i] = c.MyCipher
+		intArr[i] = c
 	}
 	return p.w.Encode(Message{
 		Type:  START_DECK,
@@ -84,10 +111,10 @@ func (p *Protocol) SendStartDeck(keyPrime *big.Int, encryptedDeck []card) error 
 }
 
 // SendEndDeck ships the first encrypted deck state to the other player
-func (p *Protocol) SendEndDeck(encryptedDeck []card) error {
+func (p *Protocol) SendEndDeck(encryptedDeck []*big.Int) error {
 	intArr := make([]*big.Int, len(encryptedDeck))
 	for i, c := range encryptedDeck {
-		intArr[i] = c.BothCipher
+		intArr[i] = c
 	}
 	return p.w.Encode(Message{Type: END_DECK, Deck: intArr})
 }
@@ -100,9 +127,4 @@ func (p *Protocol) RequestDecryptCard(cardIndex uint64) error {
 
 func (p *Protocol) SendDecryptedCard(cardIndex uint64, cardCipher *big.Int) error {
 	return p.w.Encode(Message{Type: ONE_CIPHER_CARD, Index: cardIndex, Value: cardCipher})
-}
-
-// Listen waits for events from the connected peer
-func (p *Protocol) Listen() <-chan Message {
-	return p.recieved
 }
