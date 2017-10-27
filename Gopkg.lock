@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "github.com/jordwest/mock-conn"
+  packages = ["."]
+  revision = "9bb209ef84c64540c483d6dbf40a4850f4b9302f"
+
+[[projects]]
   name = "github.com/onsi/ginkgo"
   packages = [".","config","internal/codelocation","internal/containernode","internal/failer","internal/leafnodes","internal/remote","internal/spec","internal/spec_iterator","internal/specrunner","internal/suite","internal/testingtproxy","internal/writer","reporters","reporters/stenographer","reporters/stenographer/support/go-colorable","reporters/stenographer/support/go-isatty","types"]
   revision = "9eda700730cba42af70d53180f9dcce9266bc2bc"
@@ -52,6 +58,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8803d774bded3f3f2804af87b57cd03f31ed05f193566844c2138b0e5d87a0a1"
+  inputs-digest = "e924135bac67de563948c6f1e914ff1a87b616f809e51841349fd0a060effd10"
   solver-name = "gps-cdcl"
   solver-version = 1
