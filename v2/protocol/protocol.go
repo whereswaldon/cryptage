@@ -44,6 +44,13 @@ type Protocol struct {
 // NewProtocol creates a Protocol instance assuming that the given
 // io.ReadWriteCloser is a connection to another Protocol.
 func NewProtocol(conn io.ReadWriteCloser, handler ProtocolHandler, done <-chan struct{}) (*Protocol, error) {
+	if conn == nil {
+		return nil, fmt.Errorf("Cannot create protocol in nil connection")
+	} else if handler == nil {
+		return nil, fmt.Errorf("Cannot create protocol with nil handler")
+	} else if done == nil {
+		return nil, fmt.Errorf("Cannot create protocol with nil done channel")
+	}
 	messages := make(chan Message)
 	proto := &Protocol{
 		r:        gob.NewDecoder(conn),
