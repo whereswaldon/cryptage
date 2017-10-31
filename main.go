@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/whereswaldon/cryptage/deck"
+	"github.com/whereswaldon/cryptage/v2/deck"
 	"math/rand"
 	"net"
 	"os"
@@ -87,11 +87,10 @@ func listen(address string) {
 		return
 	}
 
-	fmt.Println("Playing game")
-	deck.Play()
 	fmt.Println("Playing...")
 	time.Sleep(2 * time.Second)
-	deck.Draw()
+	face, _ := deck.Draw()
+	fmt.Println("face: ", face)
 	for {
 		time.Sleep(30 * time.Second)
 	}
