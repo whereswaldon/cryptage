@@ -75,9 +75,9 @@ type CardHolder struct {
 func (h *CardHolder) Get(index uint) (card.CardFace, error) {
 	if can, err := h.CanGet(index); !can {
 		if err != nil {
-			return "", errors.Wrapf(err, "Unable to get card")
+			return nil, errors.Wrapf(err, "Unable to get card")
 		} else {
-			return "", fmt.Errorf("Unable to get card %d", index)
+			return nil, fmt.Errorf("Unable to get card %d", index)
 		}
 	}
 	return h.cards[index].Face()
