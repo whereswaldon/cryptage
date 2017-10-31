@@ -8,6 +8,7 @@ import (
 	p "github.com/whereswaldon/cryptage/protocol"
 	"io"
 	"math/big"
+	"time"
 )
 
 // CardHolder is an ordered collection of cards.
@@ -35,6 +36,7 @@ type Deck struct {
 	cards        CardHolder
 	protocol     *p.Protocol
 	done         chan struct{}
+	ready        bool
 	faceRequests []chan card.CardFace
 	requests     chan request
 }
@@ -55,9 +57,16 @@ func NewDeck(DeckConnection io.ReadWriteCloser) (*Deck, error) {
 	d.done = done
 	d.protocol = p
 	d.requests = make(chan request)
+	d.ready = false
 	go d.handleRequests()
 
 	return d, nil
+}
+
+// ready returns whether the deck can be used for network
+// operations yet.
+func (d *Deck) isReady() bool {
+	return d.ready
 }
 
 func (d *Deck) handleRequests() {
@@ -86,11 +95,25 @@ func (d *Deck) Start() error {
 		}
 		e <- d.protocol.SendStartDeck(prime, enc)
 	}
-	return <-e
+	err := <-e
+	deadline := time.NewTicker(time.Millisecond * 500)
+	for {
+		select {
+		case <-deadline.C:
+			return fmt.Errorf("Connecting timed out")
+		default:
+			if d.isReady() {
+				return err
+			}
+		}
+	}
 }
 
 // Draw draws a single card from the Deck
 func (d *Deck) Draw() (card.CardFace, error) {
+	if !d.isReady() {
+		return "", fmt.Errorf("Deck not fully initialized, cannot draw card")
+	}
 	faces := make(chan card.CardFace)
 	defer close(faces)
 	d.requests <- func() {
@@ -119,6 +142,7 @@ func (d *Deck) HandleStartDeck(deck []*big.Int, prime *big.Int) {
 		fmt.Println("START_DECK")
 		d.keys = shamir3pass.GenerateKeyFromPrime(prime)
 		d.cards, _ = card_holder.HolderFromEncrypted(&d.keys, deck)
+		d.ready = true
 		both, _, _ := d.cards.GetAllBoth()
 		d.protocol.SendEndDeck(both)
 	}
@@ -127,6 +151,7 @@ func (d *Deck) HandleEndDeck(deck []*big.Int) {
 	d.requests <- func() {
 		fmt.Println("END_DECK")
 		d.cards.SetBothEncrypted(deck)
+		d.ready = true
 		fmt.Println(d.cards)
 	}
 }
