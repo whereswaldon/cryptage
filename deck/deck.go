@@ -41,7 +41,12 @@ type Deck struct {
 	requests     chan request
 }
 
-var Faces []card.CardFace = []card.CardFace{"ACE", "KING", "QUEEN", "JACK"}
+var Faces []card.CardFace = []card.CardFace{
+	card.CardFace("ACE"),
+	card.CardFace("KING"),
+	card.CardFace("QUEEN"),
+	card.CardFace("JACK"),
+}
 
 // NewDeck creates a Deck of cards and assumes that the given
 // io.ReadWriteCloser is a connection of some sort to another
@@ -113,7 +118,7 @@ func (d *Deck) Start() error {
 // Draw draws a single card from the Deck
 func (d *Deck) Draw() (card.CardFace, error) {
 	if !d.isReady() {
-		return "", fmt.Errorf("Deck not fully initialized, cannot draw card")
+		return nil, fmt.Errorf("Deck not fully initialized, cannot draw card")
 	}
 	faces := make(chan card.CardFace)
 	defer close(faces)
