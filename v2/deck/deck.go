@@ -2,180 +2,150 @@ package deck
 
 import (
 	"fmt"
-	shamir "github.com/sorribas/shamir3pass"
+	"github.com/sorribas/shamir3pass"
+	"github.com/whereswaldon/cryptage/v2/card"
+	"github.com/whereswaldon/cryptage/v2/card_holder"
+	p "github.com/whereswaldon/cryptage/v2/protocol"
 	"io"
 	"math/big"
 )
 
 // CardHolder is an ordered collection of cards.
 type CardHolder interface {
-	Get(uint) (card.CardFace, error)
-	SetBothEncrypted([]*big.Int) error
+	CanGet(index uint) (bool, error)
+	CanGetTheirs(index uint) (bool, error)
+	Get(index uint) (card.CardFace, error)
+	GetAllBoth() ([]*big.Int, bool, error)
 	GetAllMine() ([]*big.Int, bool, error)
+	GetTheirs(index uint) (*big.Int, error)
+	SetBothEncrypted(encryptedFaces []*big.Int) error
+	SetMine(index uint, mine *big.Int) error
+	SetTheirKey(key *shamir3pass.Key) error
+	ValidateAll() error
 }
+
+// request is a function that needs to affect the state of the
+// deck. Requests are submitted to the deck's requests channel
+// to be processed serially (thereby preventing gross race
+// conditions)
+type request func()
 
 type Deck struct {
-	keys     shamir.Key
-	cards    []card
-	protocol *Protocol
-	done     chan struct{}
+	keys         shamir3pass.Key
+	cards        CardHolder
+	protocol     *p.Protocol
+	done         chan struct{}
+	faceRequests []chan card.CardFace
+	requests     chan request
 }
 
-// Draw draws a single card from the Deck
-func (d *Deck) Draw() (string, error) {
-	d.protocol.RequestDecryptCard(0)
-	fmt.Printf("Requesting decryption of card:\n%v\n", d.cards[0].BothCipher)
-	return "", nil
-}
+var Faces []card.CardFace = []card.CardFace{"ACE", "KING", "QUEEN", "JACK"}
 
-func (d *Deck) String() string {
-	return "Deck"
-}
-
-func (d *Deck) Quit() {
-	close(d.done)
-}
-
-// Play runs the game, but does not initiate it.
-func (d *Deck) Play() {
-	go d.handleMessages()
-}
-
-// initEncryptCards  encrypts each card from the
-// plaintext to a player1 ciphertext
-func (d *Deck) initEncryptCards() {
-	for i := range d.cards {
-		d.cards[i].MyCipher = shamir.Encrypt(big.NewInt(0).SetBytes([]byte(Cards[i])), d.keys)
-		fmt.Printf("Layer1: %d: %s -> %v -> %s\n", i, Cards[i],
-			d.cards[i].MyCipher, string(shamir.Decrypt(d.cards[i].MyCipher, d.keys).Bytes()))
+// NewDeck creates a Deck of cards and assumes that the given
+// io.ReadWriteCloser is a connection of some sort to another
+// Deck.
+func NewDeck(DeckConnection io.ReadWriteCloser) (*Deck, error) {
+	d := &Deck{}
+	done := make(chan struct{})
+	p, err := p.NewProtocol(DeckConnection, d, done)
+	if err != nil {
+		return nil, err
 	}
-	//	fmt.Println(d.cards)
+	d.faceRequests = make([]chan card.CardFace, len(Faces))
+	d.done = done
+	d.protocol = p
+	d.requests = make(chan request)
+	go d.handleRequests()
+
+	return d, nil
 }
 
-// encryptCards takes a Deck with player1 ciphertext populated and
-// encrypts that ciphertext again to arrive at both players'
-// ciphertext.
-func (d *Deck) encryptCards() {
-	for i, c := range d.cards {
-		d.cards[i].BothCipher = shamir.Encrypt(c.MyCipher, d.keys)
-		fmt.Printf("Layer2: %d: %v -> %v -> %v\n", i, c.MyCipher,
-			d.cards[i].BothCipher, shamir.Decrypt(d.cards[i].BothCipher, d.keys))
-	}
-	//	fmt.Println(d.cards)
-}
-
-// setMyCiphers sets the ciphertext of the Deck to the provided
-// array
-func (d *Deck) setMyCiphers(ciphers []*big.Int) {
-	for i, c := range ciphers {
-		d.cards[i].MyCipher = c
-	}
-}
-
-// clearMyCiphers erases old ciphertext
-func (d *Deck) clearDeck() {
-	for i := range d.cards {
-		d.cards[i].MyCipher = nil
-		d.cards[i].TheirCipher = nil
-		d.cards[i].BothCipher = nil
-		d.cards[i].plain = ""
-	}
-}
-
-// decryptCard removes the current player's encryption, leaving
-// only the other player's encryption layer.
-func (d *Deck) decryptCard(index uint64) {
-	if d.cards[index].TheirCipher != nil {
-		return
-	}
-	d.cards[index].TheirCipher = shamir.Decrypt(d.cards[index].BothCipher, d.keys)
-}
-
-// revealCard removes the current player's encryption from a card,
-// revealing the plaintext face of the card.
-func (d *Deck) revealCard(index uint64) {
-	if d.cards[index].plain != "" {
-		return
-	}
-
-	//todo check whether the p2cipher is null
-	plainBigInt := shamir.Decrypt(d.cards[index].MyCipher, d.keys)
-	d.cards[index].plain = string(plainBigInt.Bytes())
-	fmt.Println("Revealed: ", d.cards[index].plain, d.cards[index].MyCipher)
-}
-
-// setBothCiphers sets the ciphertext of the Deck to the provided
-// array
-func (d *Deck) setBothCiphers(ciphers []*big.Int) {
-	for i, c := range ciphers {
-		d.cards[i].BothCipher = c
-	}
-}
-func (d *Deck) handleMessages() {
-	defer d.Quit()
-	for msg := range d.protocol.Listen() {
-		switch msg.Type {
-		case QUIT:
-			fmt.Println("QUIT")
-			return
-		case START_DECK:
-			fmt.Println("START_DECK")
-			d.keys = shamir.GenerateKeyFromPrime(msg.Value)
-			d.setMyCiphers(msg.Deck)
-			d.encryptCards()
-			d.protocol.SendEndDeck(d.cards)
-		case END_DECK:
-			fmt.Println("END_DECK")
-			// since the ciphertext has been shuffled, we no longer
-			// know which card is which. All of our old data is now
-			// irrelevant
-			d.clearDeck()
-			d.setBothCiphers(msg.Deck)
-			fmt.Println(d.cards)
-		case DECRYPT_CARD:
-			fmt.Println("DECRYPT_CARD")
-			d.decryptCard(msg.Index)
-			fmt.Println("decrypted", d.cards[msg.Index].TheirCipher)
-			d.protocol.SendDecryptedCard(msg.Index, d.cards[msg.Index].TheirCipher)
-		case ONE_CIPHER_CARD:
-			fmt.Println("ONE_CIPHER_CARD")
-			d.cards[msg.Index].MyCipher = msg.Value
-			d.revealCard(msg.Index)
-		default:
-			fmt.Println("Unknown message: %v", msg)
-		}
+func (d *Deck) handleRequests() {
+	for r := range d.requests {
+		r()
 	}
 }
 
 // Start runs the game, and initiates the first hand
 func (d *Deck) Start() error {
-	prime := shamir.Random1024BitPrime()
-	d.keys = shamir.GenerateKeyFromPrime(prime)
-	d.initEncryptCards()
-	if err := d.protocol.SendStartDeck(prime, d.cards); err != nil {
-		return err
+	e := make(chan error)
+	defer close(e)
+	d.requests <- func() {
+		prime := shamir3pass.Random1024BitPrime()
+		d.keys = shamir3pass.GenerateKeyFromPrime(prime)
+		cards, err := card_holder.NewHolder(&d.keys, Faces)
+		if err != nil {
+			e <- err
+			return
+		}
+		d.cards = cards
+		enc, _, err := d.cards.GetAllMine()
+		if err != nil {
+			e <- err
+			return
+		}
+		e <- d.protocol.SendStartDeck(prime, enc)
 	}
-	//	if err := d.protocol.SendQuit(); err != nil {
-	//		fmt.Println(err)
-	//	}
-
-	go d.handleMessages()
-	return nil
+	return <-e
 }
 
-// NewDeck creates a Deck of cards and assumes that the given
-// io.ReadWriteCloser is a connection of some sort to another
-// Deck.
-func NewDeck(DeckConnection io.ReadWriteCloser) (Deck, error) {
-	d := &Deck{}
-	done := make(chan struct{})
-	p, err := NewProtocol(DeckConnection, done)
-	if err != nil {
-		return nil, err
+// Draw draws a single card from the Deck
+func (d *Deck) Draw() (card.CardFace, error) {
+	faces := make(chan card.CardFace)
+	defer close(faces)
+	d.requests <- func() {
+		d.protocol.RequestDecryptCard(0)
+		fmt.Printf("Requesting decryption of card:\n%v\n", 0)
+		d.faceRequests[0] = faces
 	}
-	d.done = done
-	d.protocol = p
-	d.cards = make([]card, len(Cards))
+	return <-faces, nil
+}
 
-	return d, nil
+func (d *Deck) Quit() {
+	close(d.done)
+	close(d.requests)
+}
+
+// handler implementations
+
+func (d *Deck) HandleQuit() {
+	d.requests <- func() {
+		fmt.Println("QUIT")
+		d.Quit()
+	}
+}
+func (d *Deck) HandleStartDeck(deck []*big.Int, prime *big.Int) {
+	d.requests <- func() {
+		fmt.Println("START_DECK")
+		d.keys = shamir3pass.GenerateKeyFromPrime(prime)
+		d.cards, _ = card_holder.HolderFromEncrypted(&d.keys, deck)
+		both, _, _ := d.cards.GetAllBoth()
+		d.protocol.SendEndDeck(both)
+	}
+}
+func (d *Deck) HandleEndDeck(deck []*big.Int) {
+	d.requests <- func() {
+		fmt.Println("END_DECK")
+		d.cards.SetBothEncrypted(deck)
+		fmt.Println(d.cards)
+	}
+}
+func (d *Deck) HandleDecryptCard(index uint64) {
+	d.requests <- func() {
+		fmt.Println("DECRYPT_CARD")
+		theirs, _ := d.cards.GetTheirs(uint(index))
+		fmt.Println("decrypted: ", theirs)
+		d.protocol.SendDecryptedCard(index, theirs)
+	}
+}
+func (d *Deck) HandleDecryptedCard(index uint64, card *big.Int) {
+	d.requests <- func() {
+		fmt.Println("ONE_CIPHER_CARD")
+		d.cards.SetMine(uint(index), card)
+		if d.faceRequests[index] != nil {
+			face, _ := d.cards.Get(uint(index))
+			d.faceRequests[index] <- face
+			d.faceRequests[index] = nil
+		}
+	}
 }
