@@ -23,14 +23,14 @@ var _ = Describe("Card", func() {
 		Context("Where the string is empty", func() {
 			It("Should return no card and an error", func() {
 				key := shamir3pass.GenerateKey(1024)
-				card, err := NewCard("", &key)
+				card, err := NewCard(nil, &key)
 				Expect(err).ToNot(BeNil())
 				Expect(card).To(BeNil())
 			})
 		})
 		Context("Where the key is empty", func() {
 			It("Should return no card and an error", func() {
-				card, err := NewCard("test", nil)
+				card, err := NewCard([]byte("test"), nil)
 				Expect(err).ToNot(BeNil())
 				Expect(card).To(BeNil())
 			})
@@ -39,7 +39,7 @@ var _ = Describe("Card", func() {
 			It("Should return a card with a valid Face and Mine"+
 				" value and no error", func() {
 				key := shamir3pass.GenerateKey(1024)
-				card, err := NewCard("test", &key)
+				card, err := NewCard([]byte("test"), &key)
 				Expect(err).To(BeNil())
 				Expect(card).ToNot(BeNil())
 				face, err := card.Face()
@@ -119,7 +119,7 @@ var _ = Describe("Card", func() {
 		Context("Where the mine value is nil", func() {
 			It("Should return an error", func() {
 				k1, k2 := getKeyPair()
-				their := EncryptString("test", k2)
+				their := EncryptCardFace([]byte("test"), k2)
 				card, _ := CardFromTheirs(their, k1)
 				err := card.SetMine(nil)
 				Expect(err).ToNot(BeNil())
@@ -128,8 +128,8 @@ var _ = Describe("Card", func() {
 		Context("Where the mine value is valid", func() {
 			It("Should return no error", func() {
 				k1, k2 := getKeyPair()
-				their := EncryptString("test", k2)
-				mine := EncryptString("test", k1)
+				their := EncryptCardFace([]byte("test"), k2)
+				mine := EncryptCardFace([]byte("test"), k1)
 				card, _ := CardFromTheirs(their, k1)
 				err := card.SetMine(mine)
 				Expect(err).To(BeNil())
@@ -143,7 +143,7 @@ var _ = Describe("Card", func() {
 		Context("Where the key is nil", func() {
 			It("Should return an error", func() {
 				k1, k2 := getKeyPair()
-				their := EncryptString("test", k2)
+				their := EncryptCardFace([]byte("test"), k2)
 				card, _ := CardFromTheirs(their, k1)
 				err := card.SetTheirKey(nil)
 				Expect(err).ToNot(BeNil())
@@ -153,7 +153,7 @@ var _ = Describe("Card", func() {
 		Context("Where the mine value is valid", func() {
 			It("Should return no error", func() {
 				k1, k2 := getKeyPair()
-				their := EncryptString("test", k2)
+				their := EncryptCardFace([]byte("test"), k2)
 				card, _ := CardFromTheirs(their, k1)
 				err := card.SetTheirKey(k2)
 				Expect(err).To(BeNil())
@@ -165,7 +165,7 @@ var _ = Describe("Card", func() {
 		Context("Where the opponent's key is nil", func() {
 			It("Should return an error", func() {
 				k1, k2 := getKeyPair()
-				their := EncryptString("test", k2)
+				their := EncryptCardFace([]byte("test"), k2)
 				card, _ := CardFromTheirs(their, k1)
 				err := card.Validate()
 				Expect(err).ToNot(BeNil())
@@ -174,7 +174,7 @@ var _ = Describe("Card", func() {
 		Context("Where the both value is nil", func() {
 			It("Should return an error", func() {
 				k1, k2 := getKeyPair()
-				card, _ := NewCard("test", k1)
+				card, _ := NewCard([]byte("test"), k1)
 				card.SetTheirKey(k2)
 				err := card.Validate()
 				Expect(err).ToNot(BeNil())
@@ -183,8 +183,8 @@ var _ = Describe("Card", func() {
 		Context("Where all required values are present and the card is invalid", func() {
 			It("Should return an error", func() {
 				k1, k2 := getKeyPair()
-				their := EncryptString("test", k2)
-				fakeMine := EncryptString("test2", k1)
+				their := EncryptCardFace([]byte("test"), k2)
+				fakeMine := EncryptCardFace([]byte("test2"), k1)
 				card, _ := CardFromTheirs(their, k1)
 				card.SetTheirKey(k2)
 				card.SetMine(fakeMine)
@@ -197,9 +197,9 @@ var _ = Describe("Card", func() {
 			It("Should return an error", func() {
 				k1, _ := getKeyPair()
 				_, k2 := getKeyPair()
-				their := EncryptString("test", k2)
+				their := EncryptCardFace([]byte("test"), k2)
 				both := shamir3pass.Encrypt(their, *k1)
-				mine := EncryptString("test", k1)
+				mine := EncryptCardFace([]byte("test"), k1)
 				card, _ := CardFromBoth(both, k1)
 				card.SetTheirKey(k2)
 				card.SetMine(mine)
@@ -211,8 +211,8 @@ var _ = Describe("Card", func() {
 		Context("Where all required values are present and the card is valid", func() {
 			It("Should return no error", func() {
 				k1, k2 := getKeyPair()
-				their := EncryptString("test", k2)
-				mine := EncryptString("test", k1)
+				their := EncryptCardFace([]byte("test"), k2)
+				mine := EncryptCardFace([]byte("test"), k1)
 				both := shamir3pass.Encrypt(their, *k1)
 				card, _ := CardFromBoth(both, k1)
 				card.SetTheirKey(k2)

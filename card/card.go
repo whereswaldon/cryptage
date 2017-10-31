@@ -1,21 +1,20 @@
 package card
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/sorribas/shamir3pass"
 	"math/big"
 )
 
-type CardFace string
+type CardFace []byte
 
-const EMPTY_CARD = ""
-
-func EncryptString(s CardFace, k *shamir3pass.Key) *big.Int {
-	return shamir3pass.Encrypt(big.NewInt(0).SetBytes([]byte(s)), *k)
+func EncryptCardFace(s CardFace, k *shamir3pass.Key) *big.Int {
+	return shamir3pass.Encrypt(big.NewInt(0).SetBytes(s), *k)
 }
 
-func DecryptString(i *big.Int, k *shamir3pass.Key) CardFace {
-	return CardFace(shamir3pass.Decrypt(i, *k).Bytes())
+func DecryptCardFace(i *big.Int, k *shamir3pass.Key) CardFace {
+	return shamir3pass.Decrypt(i, *k).Bytes()
 }
 
 // NewCard creates an entirely new Card from the given face
@@ -24,7 +23,7 @@ func DecryptString(i *big.Int, k *shamir3pass.Key) CardFace {
 // will results in errors because the Card has not been
 // encrypted by another party.
 func NewCard(face CardFace, myKey *shamir3pass.Key) (*Card, error) {
-	if face == "" {
+	if face == nil {
 		return nil, fmt.Errorf("Unable to create Card with empty string as face")
 	} else if myKey == nil {
 		return nil, fmt.Errorf("Unable to create Card with nil key pointer")
@@ -66,13 +65,13 @@ type Card struct {
 // If neither the face nor mine fields are populated, the opponent must consent
 // to decrypt the Card, which is handled elsewhere.
 func (c *Card) Face() (CardFace, error) {
-	if c.face != "" {
+	if c.face != nil {
 		return c.face, nil
 	} else if c.mine != nil {
-		c.face = DecryptString(c.mine, c.myKey)
+		c.face = DecryptCardFace(c.mine, c.myKey)
 		return c.face, nil
 	}
-	return "", fmt.Errorf("Unable to view Card face, need other player to decrypt Card: %v", c)
+	return nil, fmt.Errorf("Unable to view Card face, need other player to decrypt Card: %v", c)
 }
 
 // Mine returns the Card's face encrypted solely by the local player's key,
@@ -80,8 +79,8 @@ func (c *Card) Face() (CardFace, error) {
 func (c *Card) Mine() (*big.Int, error) {
 	if c.mine != nil {
 		return c.mine, nil
-	} else if c.face != "" {
-		c.mine = EncryptString(c.face, c.myKey)
+	} else if c.face != nil {
+		c.mine = EncryptCardFace(c.face, c.myKey)
 		return c.mine, nil
 	}
 	return nil, fmt.Errorf("Unable to get Card solely encrypted by local player: %v", c)
@@ -139,7 +138,7 @@ func (c *Card) HasTheirKey() bool {
 // CanDecrypt returns whether the Card is able to be decrypted in its
 // current state.
 func (c *Card) CanDecrypt() bool {
-	return c.face != "" || c.mine != nil ||
+	return c.face != nil || c.mine != nil ||
 		(c.HasTheirKey() && (c.both != nil || c.theirs != nil))
 }
 
@@ -168,8 +167,8 @@ func (c *Card) Validate() error {
 	if c.mine != nil && c.mine.Cmp(mine) != 0 {
 		return fmt.Errorf("Decrypted value mismatch: stored mine: %v, computed mine: %v", c.theirs, theirs)
 	}
-	face := DecryptString(mine, c.myKey)
-	if c.face != "" && c.face != face {
+	face := DecryptCardFace(mine, c.myKey)
+	if c.face != nil && bytes.Compare(c.face, face) != 0 {
 		return fmt.Errorf("Decrypted faces do not match: stored face: %s, computed face: %s", c.face, face)
 	}
 	return nil
