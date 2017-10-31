@@ -5,7 +5,7 @@ import (
 	"github.com/sorribas/shamir3pass"
 	"math/big"
 
-	. "github.com/whereswaldon/cryptage/v2/card"
+	. "github.com/whereswaldon/cryptage/card"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

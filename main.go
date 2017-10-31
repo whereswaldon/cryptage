@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/whereswaldon/cryptage/v2/deck"
+	"github.com/whereswaldon/cryptage/deck"
 	"math/rand"
 	"net"
 	"os"

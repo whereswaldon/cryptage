@@ -3,7 +3,7 @@ package deck_test
 import (
 	mconn "github.com/jordwest/mock-conn"
 	"github.com/sorribas/shamir3pass"
-	. "github.com/whereswaldon/cryptage/v2/protocol"
+	. "github.com/whereswaldon/cryptage/protocol"
 	"io"
 	"math/big"
 	"time"

@@ -2,8 +2,8 @@ package card_holder_test
 
 import (
 	"github.com/sorribas/shamir3pass"
-	"github.com/whereswaldon/cryptage/v2/card"
-	. "github.com/whereswaldon/cryptage/v2/card_holder"
+	"github.com/whereswaldon/cryptage/card"
+	. "github.com/whereswaldon/cryptage/card_holder"
 	"math/big"
 
 	. "github.com/onsi/ginkgo"

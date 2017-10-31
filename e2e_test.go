@@ -1,9 +1,9 @@
-package v2_test
+package main_test
 
 import (
 	"github.com/sorribas/shamir3pass"
-	"github.com/whereswaldon/cryptage/v2/card"
-	"github.com/whereswaldon/cryptage/v2/card_holder"
+	"github.com/whereswaldon/cryptage/card"
+	"github.com/whereswaldon/cryptage/card_holder"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/sorribas/shamir3pass"
-	"github.com/whereswaldon/cryptage/v2/card"
+	"github.com/whereswaldon/cryptage/card"
 	"math/big"
 )
 
