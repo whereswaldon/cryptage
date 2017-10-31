@@ -2,6 +2,7 @@ package deck_test
 
 import (
 	mconn "github.com/jordwest/mock-conn"
+	"github.com/sorribas/shamir3pass"
 	. "github.com/whereswaldon/cryptage/v2/protocol"
 	"io"
 	"math/big"
@@ -42,6 +43,8 @@ var _ = Describe("Protocol", func() {
 		p2Conn  io.ReadWriteCloser
 		handler *mockHandler
 		done    chan struct{}
+		prime   *big.Int   = shamir3pass.Random1024BitPrime()
+		cards   []*big.Int = []*big.Int{big.NewInt(0), big.NewInt(1), big.NewInt(2)}
 	)
 	BeforeEach(func() {
 		connection := mconn.NewConn()
@@ -105,6 +108,74 @@ var _ = Describe("Protocol", func() {
 				Expect(p2.SendQuit()).To(BeNil())
 				msg = awaitMsg(time.Second, handler.messages)
 				Expect(msg.Type).To(BeEquivalentTo(QUIT))
+			})
+		})
+		Context("When one sends the START_DECK message", func() {
+			It("should make the other one invoke its StartDeckHandler", func() {
+				p1, _ := NewProtocol(p1Conn, handler, done)
+				p2, _ := NewProtocol(p2Conn, handler, done)
+				var msg Message
+
+				//p1 asks p2 to quit
+				Expect(p1.SendStartDeck(prime, cards)).To(BeNil())
+				msg = awaitMsg(time.Second, handler.messages)
+				Expect(msg.Type).To(BeEquivalentTo(START_DECK))
+
+				//p2 asks p1 to quit
+				Expect(p2.SendStartDeck(prime, cards)).To(BeNil())
+				msg = awaitMsg(time.Second, handler.messages)
+				Expect(msg.Type).To(BeEquivalentTo(START_DECK))
+			})
+		})
+		Context("When one sends the END_DECK message", func() {
+			It("should make the other one invoke its EndDeckHandler", func() {
+				p1, _ := NewProtocol(p1Conn, handler, done)
+				p2, _ := NewProtocol(p2Conn, handler, done)
+				var msg Message
+
+				//p1 asks p2 to quit
+				Expect(p1.SendEndDeck(cards)).To(BeNil())
+				msg = awaitMsg(time.Second, handler.messages)
+				Expect(msg.Type).To(BeEquivalentTo(END_DECK))
+
+				//p2 asks p1 to quit
+				Expect(p2.SendEndDeck(cards)).To(BeNil())
+				msg = awaitMsg(time.Second, handler.messages)
+				Expect(msg.Type).To(BeEquivalentTo(END_DECK))
+			})
+		})
+		Context("When one sends the DECRYPT_CARD message", func() {
+			It("should make the other one invoke its DecryptCardHandler", func() {
+				p1, _ := NewProtocol(p1Conn, handler, done)
+				p2, _ := NewProtocol(p2Conn, handler, done)
+				var msg Message
+
+				//p1 asks p2 to quit
+				Expect(p1.RequestDecryptCard(0)).To(BeNil())
+				msg = awaitMsg(time.Second, handler.messages)
+				Expect(msg.Type).To(BeEquivalentTo(DECRYPT_CARD))
+
+				//p2 asks p1 to quit
+				Expect(p2.RequestDecryptCard(0)).To(BeNil())
+				msg = awaitMsg(time.Second, handler.messages)
+				Expect(msg.Type).To(BeEquivalentTo(DECRYPT_CARD))
+			})
+		})
+		Context("When one sends the ONE_CIPHER_CARD message", func() {
+			It("should make the other one invoke its DecryptedCardHandler", func() {
+				p1, _ := NewProtocol(p1Conn, handler, done)
+				p2, _ := NewProtocol(p2Conn, handler, done)
+				var msg Message
+
+				//p1 asks p2 to quit
+				Expect(p1.SendDecryptedCard(0, big.NewInt(0))).To(BeNil())
+				msg = awaitMsg(time.Second, handler.messages)
+				Expect(msg.Type).To(BeEquivalentTo(ONE_CIPHER_CARD))
+
+				//p2 asks p1 to quit
+				Expect(p2.SendDecryptedCard(0, big.NewInt(0))).To(BeNil())
+				msg = awaitMsg(time.Second, handler.messages)
+				Expect(msg.Type).To(BeEquivalentTo(ONE_CIPHER_CARD))
 			})
 		})
 	})
