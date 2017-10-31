@@ -96,6 +96,7 @@ func (d *Deck) Start() error {
 		e <- d.protocol.SendStartDeck(prime, enc)
 	}
 	err := <-e
+	// don't return until we time out or the deck is fully initialized
 	deadline := time.NewTicker(time.Millisecond * 500)
 	for {
 		select {
