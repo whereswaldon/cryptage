@@ -9,7 +9,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var Faces []card.CardFace = []card.CardFace{"ACE", "KING", "QUEEN", "JACK"}
+var Faces []card.CardFace = []card.CardFace{
+	card.CardFace("ACE"),
+	card.CardFace("KING"),
+	card.CardFace("QUEEN"),
+	card.CardFace("JACK"),
+}
 
 var _ = Describe("E2e", func() {
 	Describe("When two cardholders are created", func() {
