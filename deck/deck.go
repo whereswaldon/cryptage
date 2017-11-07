@@ -7,6 +7,7 @@ import (
 	"github.com/whereswaldon/cryptage/card_holder"
 	p "github.com/whereswaldon/cryptage/protocol"
 	"io"
+	"log"
 	"math/big"
 	"time"
 )
@@ -129,7 +130,7 @@ func (d *Deck) Draw() (card.CardFace, error) {
 	defer close(faces)
 	d.requests <- func() {
 		d.protocol.RequestDecryptCard(0)
-		fmt.Printf("Requesting decryption of card:\n%v\n", 0)
+		log.Printf("Requesting decryption of card:\n%v\n", 0)
 		d.faceRequests[0] = faces
 	}
 	return <-faces, nil
