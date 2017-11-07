@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/whereswaldon/cryptage/deck"
 	"math/rand"
@@ -62,8 +63,7 @@ func dial(address string) {
 		return
 	}
 	fmt.Println("Playing...")
-	for {
-	}
+	enterUI(deck)
 }
 
 // listen starts listening on the given port.
@@ -90,8 +90,23 @@ func listen(address string) {
 	fmt.Println("Playing...")
 	time.Sleep(2 * time.Second)
 	face, _ := deck.Draw()
-	fmt.Println("face: ", face)
+	fmt.Println("face: ", string(face))
+	enterUI(deck)
+}
+
+func enterUI(deck *deck.Deck) {
+	input := ""
+	scanner := bufio.NewScanner(os.Stdin)
 	for {
-		time.Sleep(30 * time.Second)
+		fmt.Print("> ")
+		scanner.Scan()
+		input = scanner.Text()
+		switch input {
+		case "quit":
+			deck.Quit()
+			return
+		default:
+			fmt.Println("Uknown command: ", input)
+		}
 	}
 }
