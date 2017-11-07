@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
+	"log"
 	"math/big"
 )
 
@@ -70,7 +71,7 @@ func NewProtocol(conn io.ReadWriteCloser, handler ProtocolHandler, done <-chan s
 				if err := proto.r.Decode(&message); err == nil {
 					proto.recieved <- message
 				} else if err == io.EOF {
-					fmt.Println("Disconnected: EOF")
+					log.Println("Disconnected: EOF")
 					return
 				} else {
 					fmt.Println(err)
