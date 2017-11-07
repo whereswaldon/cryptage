@@ -145,13 +145,13 @@ func (d *Deck) Quit() {
 
 func (d *Deck) HandleQuit() {
 	d.requests <- func() {
-		fmt.Println("QUIT")
+		log.Println("QUIT")
 		d.Quit()
 	}
 }
 func (d *Deck) HandleStartDeck(deck []*big.Int, prime *big.Int) {
 	d.requests <- func() {
-		fmt.Println("START_DECK")
+		log.Println("START_DECK")
 		d.keys = shamir3pass.GenerateKeyFromPrime(prime)
 		d.cards, _ = card_holder.HolderFromEncrypted(&d.keys, deck)
 		d.ready = true
@@ -161,23 +161,23 @@ func (d *Deck) HandleStartDeck(deck []*big.Int, prime *big.Int) {
 }
 func (d *Deck) HandleEndDeck(deck []*big.Int) {
 	d.requests <- func() {
-		fmt.Println("END_DECK")
+		log.Println("END_DECK")
 		d.cards.SetBothEncrypted(deck)
 		d.ready = true
-		fmt.Println(d.cards)
+		log.Println(d.cards)
 	}
 }
 func (d *Deck) HandleDecryptCard(index uint64) {
 	d.requests <- func() {
-		fmt.Println("DECRYPT_CARD")
+		log.Println("DECRYPT_CARD")
 		theirs, _ := d.cards.GetTheirs(uint(index))
-		fmt.Println("decrypted: ", theirs)
+		log.Println("decrypted: ", theirs)
 		d.protocol.SendDecryptedCard(index, theirs)
 	}
 }
 func (d *Deck) HandleDecryptedCard(index uint64, card *big.Int) {
 	d.requests <- func() {
-		fmt.Println("ONE_CIPHER_CARD")
+		log.Println("ONE_CIPHER_CARD")
 		d.cards.SetMine(uint(index), card)
 		if d.faceRequests[index] != nil {
 			face, _ := d.cards.Get(uint(index))
