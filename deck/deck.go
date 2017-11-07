@@ -25,6 +25,11 @@ type CardHolder interface {
 	ValidateAll() error
 }
 
+// RulesEngine
+type RulesEngine interface {
+	OpponentCanDrawCard(index uint64) bool
+}
+
 // request is a function that needs to affect the state of the
 // deck. Requests are submitted to the deck's requests channel
 // to be processed serially (thereby preventing gross race
