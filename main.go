@@ -3,11 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/whereswaldon/cryptage/cribbage"
 	"github.com/whereswaldon/cryptage/deck"
 	"math/rand"
 	"net"
 	"os"
-	"time"
 )
 
 const (
@@ -62,8 +62,13 @@ func dial(address string) {
 		fmt.Println(err)
 		return
 	}
+	game, err := cribbage.NewCribbage(deck)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	fmt.Println("Playing...")
-	enterUI(deck)
+	enterUI(game)
 }
 
 // listen starts listening on the given port.
@@ -86,15 +91,18 @@ func listen(address string) {
 		fmt.Println(err)
 		return
 	}
+	game, err := cribbage.NewCribbage(deck)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	fmt.Println("Playing...")
-	time.Sleep(2 * time.Second)
-	face, _ := deck.Draw()
-	fmt.Println("face: ", string(face))
-	enterUI(deck)
+
+	enterUI(game)
 }
 
-func enterUI(deck *deck.Deck) {
+func enterUI(game *cribbage.Cribbage) {
 	input := ""
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
@@ -103,8 +111,15 @@ func enterUI(deck *deck.Deck) {
 		input = scanner.Text()
 		switch input {
 		case "quit":
-			deck.Quit()
+			game.Quit()
 			return
+		case "hand":
+			h, err := game.Hand()
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println("Hand: ", h)
+			}
 		default:
 			fmt.Println("Uknown command: ", input)
 		}

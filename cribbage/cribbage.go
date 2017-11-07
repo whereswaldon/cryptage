@@ -34,6 +34,11 @@ func (c *Cribbage) Hand() ([]card.CardFace, error) {
 	return hand, nil
 }
 
+func (c *Cribbage) Quit() error {
+	c.deck.Quit()
+	return nil
+}
+
 func getHandSize(numPlayers int) int {
 	switch numPlayers {
 	case 2:
