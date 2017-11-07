@@ -74,7 +74,7 @@ func NewProtocol(conn io.ReadWriteCloser, handler ProtocolHandler, done <-chan s
 					log.Println("Disconnected: EOF")
 					return
 				} else {
-					fmt.Println(err)
+					log.Println(err)
 				}
 			}
 		}
