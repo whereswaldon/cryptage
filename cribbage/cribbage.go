@@ -1,9 +1,30 @@
 package cribbage
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/whereswaldon/cryptage/card"
+	"strings"
 )
+
+type Card struct {
+	Suit string
+	Rank string
+}
+
+func (c *Card) MarshalText() ([]byte, error) {
+	return []byte(c.Rank + " " + c.Suit), nil
+}
+
+func (c *Card) UnmarshalText(text []byte) error {
+	split := strings.Split(string(text), " ")
+	if len(split) < 2 {
+		return fmt.Errorf("Invalid card: %v", text)
+	}
+	c.Rank = split[0]
+	c.Suit = split[1]
+	return nil
+}
 
 type Cribbage struct {
 	deck    Deck
