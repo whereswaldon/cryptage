@@ -70,6 +70,10 @@ type CardHolder struct {
 	key   *shamir3pass.Key
 }
 
+func (h *CardHolder) Size() uint {
+	return uint(len(h.cards))
+}
+
 // Get returns the card face at the given position within the deck,
 // if possible
 func (h *CardHolder) Get(index uint) (card.CardFace, error) {

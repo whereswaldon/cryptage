@@ -52,7 +52,7 @@ type Cribbage struct {
 }
 
 type Deck interface {
-	Draw() (card.CardFace, error)
+	Draw(uint) (card.CardFace, error)
 	Quit()
 	Start([]card.CardFace) error
 }
@@ -65,7 +65,7 @@ func (c *Cribbage) Hand() ([]*Card, error) {
 	handSize := getHandSize(c.players)
 	hand := make([]*Card, handSize)
 	for i := range hand {
-		current, err := c.deck.Draw()
+		current, err := c.deck.Draw(uint(i))
 		if err != nil {
 			return nil, errors.Wrapf(err, "Unable to get hand")
 		}

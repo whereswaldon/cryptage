@@ -14,6 +14,7 @@ import (
 
 // CardHolder is an ordered collection of cards.
 type CardHolder interface {
+	Size() uint
 	CanGet(index uint) (bool, error)
 	CanGetTheirs(index uint) (bool, error)
 	Get(index uint) (card.CardFace, error)
@@ -115,9 +116,11 @@ func (d *Deck) Start(faces []card.CardFace) error {
 }
 
 // Draw draws a single card from the Deck
-func (d *Deck) Draw() (card.CardFace, error) {
+func (d *Deck) Draw(index uint) (card.CardFace, error) {
 	if !d.isReady() {
 		return nil, fmt.Errorf("Deck not fully initialized, cannot draw card")
+	} else if index >= d.Size() {
+		return nil, fmt.Errorf("Deck has size %d, tried to draw card %d", d.Size(), index)
 	}
 	faces := make(chan card.CardFace)
 	defer close(faces)
@@ -127,6 +130,14 @@ func (d *Deck) Draw() (card.CardFace, error) {
 		d.faceRequests[0] = faces
 	}
 	return <-faces, nil
+}
+
+func (d *Deck) Size() uint {
+	resp := make(chan uint)
+	d.requests <- func() {
+		resp <- d.cards.Size()
+	}
+	return <-resp
 }
 
 func (d *Deck) Quit() {

@@ -3,6 +3,7 @@ package deck_test
 import (
 	"bytes"
 	mconn "github.com/jordwest/mock-conn"
+	"github.com/whereswaldon/cryptage/card"
 	. "github.com/whereswaldon/cryptage/deck"
 
 	. "github.com/onsi/ginkgo"
@@ -16,6 +17,8 @@ type ClosableBuffer struct {
 func (c *ClosableBuffer) Close() error {
 	return nil
 }
+
+var faces []card.CardFace = []card.CardFace{card.CardFace("thing"), card.CardFace("other"), card.CardFace("test")}
 
 var _ = Describe("Deck", func() {
 	Describe("Creating a deck", func() {
@@ -46,10 +49,10 @@ var _ = Describe("Deck", func() {
 		})
 		Context("When one calls Draw before one has called Start", func() {
 			It("All calls to draw should result in errors", func() {
-				face, err := d1.Draw()
+				face, err := d1.Draw(0)
 				Expect(err).ToNot(BeNil())
 				Expect(face).To(BeEquivalentTo(""))
-				face2, err := d2.Draw()
+				face2, err := d2.Draw(0)
 				Expect(err).ToNot(BeNil())
 				Expect(face2).To(BeEquivalentTo(""))
 				Expect(face).To(Equal(face2))
@@ -57,14 +60,20 @@ var _ = Describe("Deck", func() {
 		})
 		Context("When one calls Draw after one has called Start", func() {
 			It("All calls to draw should return card faces", func() {
-				Expect(d1.Start()).To(BeNil())
-				face, err := d1.Draw()
+				Expect(d1.Start(faces)).To(BeNil())
+				face, err := d1.Draw(0)
 				Expect(err).To(BeNil())
 				Expect(face).ToNot(BeEquivalentTo(""))
-				face2, err := d2.Draw()
+				face2, err := d2.Draw(0)
 				Expect(err).To(BeNil())
 				Expect(face2).ToNot(BeEquivalentTo(""))
 				Expect(face).To(Equal(face2))
+			})
+		})
+		Context("When Draw is called with an invalid index", func() {
+			It("Should return an error", func() {
+				_, err := d1.Draw(10000)
+				Expect(err).ToNot(BeNil())
 			})
 		})
 	})
