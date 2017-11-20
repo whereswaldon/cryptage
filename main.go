@@ -118,7 +118,7 @@ func enterUI(game *cribbage.Cribbage) {
 			if err != nil {
 				fmt.Println(err)
 			} else {
-				fmt.Println("Hand: ", h)
+				fmt.Println(cribbage.RenderCards(h))
 			}
 		default:
 			fmt.Println("Uknown command: ", input)
