@@ -62,7 +62,7 @@ func dial(address string) {
 		fmt.Println(err)
 		return
 	}
-	game, err := cribbage.NewCribbage(deck)
+	game, err := cribbage.NewCribbage(deck, 2)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -91,7 +91,7 @@ func listen(address string) {
 		fmt.Println(err)
 		return
 	}
-	game, err := cribbage.NewCribbage(deck)
+	game, err := cribbage.NewCribbage(deck, 1)
 	if err != nil {
 		fmt.Println(err)
 		return

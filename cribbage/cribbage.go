@@ -47,8 +47,9 @@ func Cards() []card.CardFace {
 }
 
 type Cribbage struct {
-	deck    Deck
-	players int
+	deck      Deck
+	players   int
+	playerNum int
 }
 
 type Deck interface {
@@ -57,15 +58,29 @@ type Deck interface {
 	Start([]card.CardFace) error
 }
 
-func NewCribbage(deck Deck) (*Cribbage, error) {
-	return &Cribbage{deck: deck, players: 2}, nil
+func NewCribbage(deck Deck, playerNum int) (*Cribbage, error) {
+	if deck == nil {
+		return nil, fmt.Errorf("Cannot create Cribbage with nil deck")
+	} else if playerNum < 1 || playerNum > 2 {
+		return nil, fmt.Errorf("Illegal playerNum %d", playerNum)
+	}
+	return &Cribbage{deck: deck, players: 2, playerNum: playerNum}, nil
 }
 
 func (c *Cribbage) Hand() ([]*Card, error) {
 	handSize := getHandSize(c.players)
 	hand := make([]*Card, handSize)
+	var index uint
 	for i := range hand {
-		current, err := c.deck.Draw(uint(i))
+		if c.playerNum == 1 {
+			index = 2 * uint(i)
+		} else if c.playerNum == 2 {
+			index = 2*uint(i) + 1
+		} else {
+			return nil, fmt.Errorf("Unsupported player number %d", c.playerNum)
+		}
+
+		current, err := c.deck.Draw(index)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Unable to get hand")
 		}
