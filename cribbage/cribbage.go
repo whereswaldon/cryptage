@@ -48,6 +48,7 @@ func Cards() []card.CardFace {
 
 type Cribbage struct {
 	deck      Deck
+	opponent  Opponent
 	players   int
 	playerNum int
 }
@@ -58,13 +59,23 @@ type Deck interface {
 	Start([]card.CardFace) error
 }
 
-func NewCribbage(deck Deck, playerNum int) (*Cribbage, error) {
+type Opponent interface {
+	Send(message []byte) error
+	Recieve() <-chan []byte
+}
+
+func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 	if deck == nil {
 		return nil, fmt.Errorf("Cannot create Cribbage with nil deck")
 	} else if playerNum < 1 || playerNum > 2 {
 		return nil, fmt.Errorf("Illegal playerNum %d", playerNum)
 	}
-	return &Cribbage{deck: deck, players: 2, playerNum: playerNum}, nil
+	return &Cribbage{
+		deck:      deck,
+		players:   2,
+		playerNum: playerNum,
+		opponent:  opp,
+	}, nil
 }
 
 func (c *Cribbage) Hand() ([]*Card, error) {
