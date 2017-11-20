@@ -125,9 +125,9 @@ func (d *Deck) Draw(index uint) (card.CardFace, error) {
 	faces := make(chan card.CardFace)
 	defer close(faces)
 	d.requests <- func() {
-		d.protocol.RequestDecryptCard(0)
-		log.Printf("Requesting decryption of card:\n%v\n", 0)
-		d.faceRequests[0] = faces
+		d.protocol.RequestDecryptCard(uint64(index))
+		log.Printf("Requesting decryption of card:\n%v\n", index)
+		d.faceRequests[index] = faces
 	}
 	return <-faces, nil
 }
