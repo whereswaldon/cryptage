@@ -6,6 +6,7 @@ import (
 	"github.com/sorribas/shamir3pass"
 	"github.com/whereswaldon/cryptage/card"
 	"math/big"
+	"math/rand"
 )
 
 // Card represents a single card with methods to
@@ -34,13 +35,15 @@ func NewHolder(key *shamir3pass.Key, faces []card.CardFace) (*CardHolder, error)
 		return nil, fmt.Errorf("Cannot construct CardHolder with empty card faces")
 	}
 	cards := make([]Card, len(faces))
-	var err error
-	for i, c := range faces {
-		cards[i], err = card.NewCard(c, key)
+	shuffle := rand.Perm(len(faces))
+	for i, v := range shuffle {
+		c, err := card.NewCard(faces[i], key)
 		if err != nil {
 			return nil, errors.Wrap(err, "Error creating card")
 		}
+		cards[v] = c
 	}
+
 	return &CardHolder{cards: cards, key: key}, nil
 }
 
@@ -55,13 +58,15 @@ func HolderFromEncrypted(key *shamir3pass.Key, theirEncrypted []*big.Int) (*Card
 		return nil, fmt.Errorf("Cannot construct CardHolder with empty encrypted faces")
 	}
 	cards := make([]Card, len(theirEncrypted))
-	var err error
-	for i, c := range theirEncrypted {
-		cards[i], err = card.CardFromTheirs(c, key)
+	shuffle := rand.Perm(len(theirEncrypted))
+	for i, v := range shuffle {
+		c, err := card.CardFromTheirs(theirEncrypted[i], key)
 		if err != nil {
 			return nil, errors.Wrap(err, "Error creating card")
 		}
+		cards[v] = c
 	}
+
 	return &CardHolder{cards: cards, key: key}, nil
 }
 
