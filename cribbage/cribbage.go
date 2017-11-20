@@ -26,6 +26,26 @@ func (c *Card) UnmarshalText(text []byte) error {
 	return nil
 }
 
+func (c *Card) String() string {
+	return fmt.Sprintf("%s of %s", c.Rank, c.Suit)
+}
+
+var suits = []string{"Hearts", "Spades", "Clubs", "Diamonds"}
+var ranks = []string{"Two", "Three", "Four", "Five", "Six", "Seven",
+	"Eight", "Nine", "Ten", "Jack", "Queen", "King", "Ace"}
+
+func Cards() []card.CardFace {
+	deck := make([]card.CardFace, len(suits)*len(ranks))
+	for i, suit := range suits {
+		for j, rank := range ranks {
+			c := &Card{Suit: suit, Rank: rank}
+			text, _ := c.MarshalText()
+			deck[i*len(ranks)+j] = card.CardFace(text)
+		}
+	}
+	return deck
+}
+
 type Cribbage struct {
 	deck    Deck
 	players int
@@ -34,22 +54,23 @@ type Cribbage struct {
 type Deck interface {
 	Draw() (card.CardFace, error)
 	Quit()
-	Start() error
+	Start([]card.CardFace) error
 }
 
 func NewCribbage(deck Deck) (*Cribbage, error) {
 	return &Cribbage{deck: deck, players: 2}, nil
 }
 
-func (c *Cribbage) Hand() ([]card.CardFace, error) {
+func (c *Cribbage) Hand() ([]*Card, error) {
 	handSize := getHandSize(c.players)
-	hand := make([]card.CardFace, handSize)
-	var err error
+	hand := make([]*Card, handSize)
 	for i := range hand {
-		hand[i], err = c.deck.Draw()
+		current, err := c.deck.Draw()
 		if err != nil {
 			return nil, errors.Wrapf(err, "Unable to get hand")
 		}
+		hand[i] = &Card{}
+		hand[i].UnmarshalText(current)
 	}
 
 	return hand, nil

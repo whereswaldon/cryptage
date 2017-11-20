@@ -58,7 +58,7 @@ func dial(address string) {
 		return
 	}
 	fmt.Println("Starting game...")
-	if err := deck.Start(); err != nil {
+	if err := deck.Start(cribbage.Cards()); err != nil {
 		fmt.Println(err)
 		return
 	}

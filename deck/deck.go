@@ -47,13 +47,6 @@ type Deck struct {
 	requests     chan request
 }
 
-var Faces []card.CardFace = []card.CardFace{
-	card.CardFace("ACE"),
-	card.CardFace("KING"),
-	card.CardFace("QUEEN"),
-	card.CardFace("JACK"),
-}
-
 // NewDeck creates a Deck of cards and assumes that the given
 // io.ReadWriteCloser is a connection of some sort to another
 // Deck.
@@ -64,7 +57,6 @@ func NewDeck(DeckConnection io.ReadWriteCloser) (*Deck, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.faceRequests = make([]chan card.CardFace, len(Faces))
 	d.done = done
 	d.protocol = p
 	d.requests = make(chan request)
@@ -87,13 +79,14 @@ func (d *Deck) handleRequests() {
 }
 
 // Start runs the game, and initiates the first hand
-func (d *Deck) Start() error {
+func (d *Deck) Start(faces []card.CardFace) error {
 	e := make(chan error)
 	defer close(e)
 	d.requests <- func() {
+		d.faceRequests = make([]chan card.CardFace, len(faces))
 		prime := shamir3pass.Random1024BitPrime()
 		d.keys = shamir3pass.GenerateKeyFromPrime(prime)
-		cards, err := card_holder.NewHolder(&d.keys, Faces)
+		cards, err := card_holder.NewHolder(&d.keys, faces)
 		if err != nil {
 			e <- err
 			return
@@ -154,6 +147,7 @@ func (d *Deck) HandleStartDeck(deck []*big.Int, prime *big.Int) {
 		log.Println("START_DECK")
 		d.keys = shamir3pass.GenerateKeyFromPrime(prime)
 		d.cards, _ = card_holder.HolderFromEncrypted(&d.keys, deck)
+		d.faceRequests = make([]chan card.CardFace, len(deck))
 		d.ready = true
 		both, _, _ := d.cards.GetAllBoth()
 		d.protocol.SendEndDeck(both)
