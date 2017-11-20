@@ -34,6 +34,9 @@ func (m *mockHandler) HandleDecryptCard(index uint64) {
 func (m *mockHandler) HandleDecryptedCard(index uint64, card *big.Int) {
 	m.messages <- Message{Type: ONE_CIPHER_CARD}
 }
+func (m *mockHandler) HandleAppMessage(data []byte) {
+	m.messages <- Message{Type: APP_MESSAGE}
+}
 
 var _ ProtocolHandler = &mockHandler{}
 
@@ -116,12 +119,12 @@ var _ = Describe("Protocol", func() {
 				p2, _ := NewProtocol(p2Conn, handler, done)
 				var msg Message
 
-				//p1 asks p2 to quit
+				//p1 sends p2 a partially-encrypted deck
 				Expect(p1.SendStartDeck(prime, cards)).To(BeNil())
 				msg = awaitMsg(time.Second, handler.messages)
 				Expect(msg.Type).To(BeEquivalentTo(START_DECK))
 
-				//p2 asks p1 to quit
+				//p2 sends p1 a partially-encrypted deck
 				Expect(p2.SendStartDeck(prime, cards)).To(BeNil())
 				msg = awaitMsg(time.Second, handler.messages)
 				Expect(msg.Type).To(BeEquivalentTo(START_DECK))
@@ -133,12 +136,12 @@ var _ = Describe("Protocol", func() {
 				p2, _ := NewProtocol(p2Conn, handler, done)
 				var msg Message
 
-				//p1 asks p2 to quit
+				//p1 sends the final deck to p2
 				Expect(p1.SendEndDeck(cards)).To(BeNil())
 				msg = awaitMsg(time.Second, handler.messages)
 				Expect(msg.Type).To(BeEquivalentTo(END_DECK))
 
-				//p2 asks p1 to quit
+				//p2 sends the final deck to p1
 				Expect(p2.SendEndDeck(cards)).To(BeNil())
 				msg = awaitMsg(time.Second, handler.messages)
 				Expect(msg.Type).To(BeEquivalentTo(END_DECK))
@@ -150,12 +153,12 @@ var _ = Describe("Protocol", func() {
 				p2, _ := NewProtocol(p2Conn, handler, done)
 				var msg Message
 
-				//p1 asks p2 to quit
+				//p1 asks p2 to decrypt a card
 				Expect(p1.RequestDecryptCard(0)).To(BeNil())
 				msg = awaitMsg(time.Second, handler.messages)
 				Expect(msg.Type).To(BeEquivalentTo(DECRYPT_CARD))
 
-				//p2 asks p1 to quit
+				//p2 asks p1 to decrypt a card
 				Expect(p2.RequestDecryptCard(0)).To(BeNil())
 				msg = awaitMsg(time.Second, handler.messages)
 				Expect(msg.Type).To(BeEquivalentTo(DECRYPT_CARD))
@@ -167,15 +170,32 @@ var _ = Describe("Protocol", func() {
 				p2, _ := NewProtocol(p2Conn, handler, done)
 				var msg Message
 
-				//p1 asks p2 to quit
+				//p1 sends a partially-decrypted card to p2
 				Expect(p1.SendDecryptedCard(0, big.NewInt(0))).To(BeNil())
 				msg = awaitMsg(time.Second, handler.messages)
 				Expect(msg.Type).To(BeEquivalentTo(ONE_CIPHER_CARD))
 
-				//p2 asks p1 to quit
+				//p2 sends a partially-decrypted card to p1
 				Expect(p2.SendDecryptedCard(0, big.NewInt(0))).To(BeNil())
 				msg = awaitMsg(time.Second, handler.messages)
 				Expect(msg.Type).To(BeEquivalentTo(ONE_CIPHER_CARD))
+			})
+		})
+		Context("When one sends the APP_MESSAGE message", func() {
+			It("should make the other one invoke its AppMessageHandler", func() {
+				p1, _ := NewProtocol(p1Conn, handler, done)
+				p2, _ := NewProtocol(p2Conn, handler, done)
+				var msg Message
+
+				//p1 sends p2 a message
+				Expect(p1.SendApplicationMessage([]byte{0, 0, 0})).To(BeNil())
+				msg = awaitMsg(time.Second, handler.messages)
+				Expect(msg.Type).To(BeEquivalentTo(APP_MESSAGE))
+
+				//p2 sends p1 a message
+				Expect(p2.SendApplicationMessage([]byte{0, 0, 0})).To(BeNil())
+				msg = awaitMsg(time.Second, handler.messages)
+				Expect(msg.Type).To(BeEquivalentTo(APP_MESSAGE))
 			})
 		})
 	})

@@ -46,6 +46,7 @@ type Deck struct {
 	ready        bool
 	faceRequests []chan card.CardFace
 	requests     chan request
+	messages     chan []byte
 }
 
 // NewDeck creates a Deck of cards and assumes that the given
@@ -61,6 +62,7 @@ func NewDeck(DeckConnection io.ReadWriteCloser) (*Deck, error) {
 	d.done = done
 	d.protocol = p
 	d.requests = make(chan request)
+	d.messages = make(chan []byte)
 	d.ready = false
 	go d.handleRequests()
 
@@ -145,6 +147,19 @@ func (d *Deck) Quit() {
 	close(d.requests)
 }
 
+// Higher-layer communication:
+func (d *Deck) Send(message []byte) error {
+	e := make(chan error)
+	d.requests <- func() {
+		e <- d.protocol.SendApplicationMessage(message)
+	}
+	return <-e
+}
+
+func (d *Deck) Recieve() <-chan []byte {
+	return d.messages
+}
+
 // handler implementations
 
 func (d *Deck) HandleQuit() {
@@ -189,5 +204,12 @@ func (d *Deck) HandleDecryptedCard(index uint64, card *big.Int) {
 			d.faceRequests[index] <- face
 			d.faceRequests[index] = nil
 		}
+	}
+}
+
+func (d *Deck) HandleAppMessage(data []byte) {
+	d.requests <- func() {
+		log.Println("APP_MESSAGE")
+		d.messages <- data
 	}
 }

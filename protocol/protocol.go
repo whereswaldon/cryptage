@@ -14,6 +14,7 @@ const (
 	END_DECK        = 2
 	DECRYPT_CARD    = 3
 	ONE_CIPHER_CARD = 4
+	APP_MESSAGE     = 5 //game client messages, passed through as data
 )
 
 type ProtocolHandler interface {
@@ -22,6 +23,7 @@ type ProtocolHandler interface {
 	HandleEndDeck(deck []*big.Int)
 	HandleDecryptCard(index uint64)
 	HandleDecryptedCard(index uint64, card *big.Int)
+	HandleAppMessage(data []byte)
 }
 
 // Message is a struct representing a request from one deck to another
@@ -30,6 +32,7 @@ type Message struct {
 	Deck  []*big.Int
 	Index uint64
 	Value *big.Int
+	Data  []byte
 }
 
 // Protocol is an agent implementing the send and recieve sides of the
@@ -92,6 +95,8 @@ func NewProtocol(conn io.ReadWriteCloser, handler ProtocolHandler, done <-chan s
 				proto.handler.HandleDecryptCard(msg.Index)
 			case ONE_CIPHER_CARD:
 				proto.handler.HandleDecryptedCard(msg.Index, msg.Value)
+			case APP_MESSAGE:
+				proto.handler.HandleAppMessage(msg.Data)
 			default:
 			}
 		}
@@ -135,4 +140,8 @@ func (p *Protocol) RequestDecryptCard(cardIndex uint64) error {
 
 func (p *Protocol) SendDecryptedCard(cardIndex uint64, cardCipher *big.Int) error {
 	return p.w.Encode(Message{Type: ONE_CIPHER_CARD, Index: cardIndex, Value: cardCipher})
+}
+
+func (p *Protocol) SendApplicationMessage(data []byte) error {
+	return p.w.Encode(Message{Type: APP_MESSAGE, Data: data})
 }
