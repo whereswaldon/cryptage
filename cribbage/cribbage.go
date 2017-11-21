@@ -91,11 +91,16 @@ func (c *Cribbage) Quit() error {
 	return nil
 }
 
+// Crib adds the card at the specified index within the player's hand to the
+// crib. This remove it from the player's hand.
 func (c *Cribbage) Crib(handIndex uint) error {
 	if handIndex >= uint(len(c.hand.cards)) {
 		return fmt.Errorf("Index out of bounds %d", handIndex)
 	}
 	lastIndex := len(c.hand.cards) - 1
+	if lastIndex < 4 {
+		return fmt.Errorf("Cannot add another card to crib, hand is already minimum size")
+	}
 	c.crib.cards = append(c.crib.cards, c.hand.cards[handIndex])
 	c.crib.indicies = append(c.crib.indicies, c.hand.indicies[handIndex])
 	c.hand.cards[handIndex] = c.hand.cards[lastIndex]
@@ -122,9 +127,9 @@ func (c *Cribbage) UI() {
 			} else {
 				fmt.Println("hand: ", RenderHand(h))
 			}
-		case "crib":
+		case "toCrib":
 			if len(input) < 2 {
-				fmt.Println("Usage: crib <card-index>")
+				fmt.Println("Usage: toCrib <card-index>")
 				continue
 			}
 			i, err := strconv.Atoi(input[1])
@@ -134,8 +139,10 @@ func (c *Cribbage) UI() {
 			}
 			err = c.Crib(uint(i))
 			if err != nil {
-				fmt.Printf("error adding %s to crib: %v\n", input[1], c.crib)
+				fmt.Printf("error adding %s to crib: %v\n", input[1], err)
 			}
+			fmt.Println("crib: ", RenderHand(c.crib))
+		case "crib":
 			fmt.Println("crib: ", RenderHand(c.crib))
 
 		default:
