@@ -19,11 +19,14 @@ func RenderCard(card *Card) string {
 	return printer(renderRank(card), renderSuit(card))
 }
 
-func RenderCards(cards []*Card) string {
+func RenderHand(hand *Hand) string {
 	out := ""
-	for i, card := range cards {
+	for i, card := range hand.cards {
+		if card == nil {
+			card = &Card{}
+		}
 		out += RenderCard(card)
-		if i < len(cards) {
+		if i < len(hand.cards) {
 			out += " "
 		}
 	}

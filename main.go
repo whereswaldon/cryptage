@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/whereswaldon/cryptage/cribbage"
 	"github.com/whereswaldon/cryptage/deck"
@@ -100,28 +99,4 @@ func listen(address string) {
 	fmt.Println("Playing...")
 
 	game.UI()
-}
-
-func enterUI(game *cribbage.Cribbage) {
-	input := ""
-	scanner := bufio.NewScanner(os.Stdin)
-	for {
-		fmt.Print("> ")
-		scanner.Scan()
-		input = scanner.Text()
-		switch input {
-		case "quit":
-			game.Quit()
-			return
-		case "hand":
-			h, err := game.Hand()
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				fmt.Println(cribbage.RenderCards(h))
-			}
-		default:
-			fmt.Println("Uknown command: ", input)
-		}
-	}
 }

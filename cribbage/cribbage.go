@@ -6,46 +6,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/whereswaldon/cryptage/card"
 	"os"
-	"strings"
 )
 
-type Card struct {
-	Suit string
-	Rank string
-}
-
-func (c *Card) MarshalText() ([]byte, error) {
-	return []byte(c.Rank + " " + c.Suit), nil
-}
-
-func (c *Card) UnmarshalText(text []byte) error {
-	split := strings.Split(string(text), " ")
-	if len(split) < 2 {
-		return fmt.Errorf("Invalid card: %v", text)
-	}
-	c.Rank = split[0]
-	c.Suit = split[1]
-	return nil
-}
-
-func (c *Card) String() string {
-	return fmt.Sprintf("%s of %s", c.Rank, c.Suit)
-}
-
-var suits = []string{"Hearts", "Spades", "Clubs", "Diamonds"}
-var ranks = []string{"Two", "Three", "Four", "Five", "Six", "Seven",
-	"Eight", "Nine", "Ten", "Jack", "Queen", "King", "Ace"}
-
-func Cards() []card.CardFace {
-	deck := make([]card.CardFace, len(suits)*len(ranks))
-	for i, suit := range suits {
-		for j, rank := range ranks {
-			c := &Card{Suit: suit, Rank: rank}
-			text, _ := c.MarshalText()
-			deck[i*len(ranks)+j] = card.CardFace(text)
-		}
-	}
-	return deck
+type ScoreBoard struct {
+	p1current, p1last, p2current, p2last uint
 }
 
 type Cribbage struct {
@@ -53,6 +17,7 @@ type Cribbage struct {
 	opponent  Opponent
 	players   int
 	playerNum int
+	hand      *Hand
 }
 
 type Deck interface {
@@ -82,11 +47,14 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 	}, nil
 }
 
-func (c *Cribbage) Hand() ([]*Card, error) {
+func (c *Cribbage) drawHand() (*Hand, error) {
 	handSize := getHandSize(c.players)
-	hand := make([]*Card, handSize)
+	c.hand = &Hand{
+		cards:    make([]*Card, handSize),
+		indicies: make([]uint, handSize),
+	}
 	var index uint
-	for i := range hand {
+	for i := range c.hand.cards {
 		if c.playerNum == 1 {
 			index = 2 * uint(i)
 		} else if c.playerNum == 2 {
@@ -99,29 +67,25 @@ func (c *Cribbage) Hand() ([]*Card, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "Unable to get hand")
 		}
-		hand[i] = &Card{}
-		hand[i].UnmarshalText(current)
+		c.hand.indicies[i] = index
+		c.hand.cards[i] = &Card{}
+		c.hand.cards[i].UnmarshalText(current)
 	}
 
-	return hand, nil
+	return c.hand, nil
+}
+
+// Hand returns the local player's hand
+func (c *Cribbage) Hand() (*Hand, error) {
+	if c.hand == nil {
+		return c.drawHand()
+	}
+	return c.hand, nil
 }
 
 func (c *Cribbage) Quit() error {
 	c.deck.Quit()
 	return nil
-}
-
-func getHandSize(numPlayers int) int {
-	switch numPlayers {
-	case 2:
-		return 6
-	case 3:
-		fallthrough
-	case 4:
-		return 5
-	default:
-		return 0
-	}
 }
 
 func (c *Cribbage) UI() {
@@ -140,7 +104,7 @@ func (c *Cribbage) UI() {
 			if err != nil {
 				fmt.Println(err)
 			} else {
-				fmt.Println(RenderCards(h))
+				fmt.Println(RenderHand(h))
 			}
 		default:
 			fmt.Println("Uknown command: ", input)
