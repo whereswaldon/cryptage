@@ -68,7 +68,7 @@ func dial(address string) {
 		return
 	}
 	fmt.Println("Playing...")
-	enterUI(game)
+	game.UI()
 }
 
 // listen starts listening on the given port.
@@ -99,7 +99,7 @@ func listen(address string) {
 
 	fmt.Println("Playing...")
 
-	enterUI(game)
+	game.UI()
 }
 
 func enterUI(game *cribbage.Cribbage) {

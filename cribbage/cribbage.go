@@ -1,9 +1,11 @@
 package cribbage
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/whereswaldon/cryptage/card"
+	"os"
 	"strings"
 )
 
@@ -67,6 +69,8 @@ type Opponent interface {
 func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 	if deck == nil {
 		return nil, fmt.Errorf("Cannot create Cribbage with nil deck")
+	} else if opp == nil {
+		return nil, fmt.Errorf("Cannot create Cribbage with nil opponent")
 	} else if playerNum < 1 || playerNum > 2 {
 		return nil, fmt.Errorf("Illegal playerNum %d", playerNum)
 	}
@@ -117,5 +121,29 @@ func getHandSize(numPlayers int) int {
 		return 5
 	default:
 		return 0
+	}
+}
+
+func (c *Cribbage) UI() {
+	input := ""
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Print("> ")
+		scanner.Scan()
+		input = scanner.Text()
+		switch input {
+		case "quit":
+			c.Quit()
+			return
+		case "hand":
+			h, err := c.Hand()
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println(RenderCards(h))
+			}
+		default:
+			fmt.Println("Uknown command: ", input)
+		}
 	}
 }
