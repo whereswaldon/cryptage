@@ -15,11 +15,12 @@ type ScoreBoard struct {
 }
 
 type Cribbage struct {
-	deck       Deck
-	opponent   Opponent
-	players    int
-	playerNum  int
-	hand, crib *Hand
+	deck                Deck
+	opponent            Opponent
+	players             int
+	playerNum           int
+	hand, crib          *Hand
+	stateChangeRequests chan func()
 }
 
 type Deck interface {
@@ -41,41 +42,67 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 	} else if playerNum < 1 || playerNum > 2 {
 		return nil, fmt.Errorf("Illegal playerNum %d", playerNum)
 	}
-	return &Cribbage{
-		deck:      deck,
-		players:   2,
-		playerNum: playerNum,
-		opponent:  opp,
-		crib:      &Hand{cards: make([]*Card, 0), indicies: make([]uint, 0)},
-	}, nil
+
+	cribbage := &Cribbage{
+		deck:                deck,
+		players:             2,
+		playerNum:           playerNum,
+		opponent:            opp,
+		crib:                &Hand{cards: make([]*Card, 0), indicies: make([]uint, 0)},
+		stateChangeRequests: make(chan func()),
+	}
+	go func() {
+		for req := range cribbage.stateChangeRequests {
+			req()
+		}
+	}()
+	return cribbage, nil
 }
 
 func (c *Cribbage) drawHand() (*Hand, error) {
-	handSize := getHandSize(c.players)
-	c.hand = &Hand{
-		cards:    make([]*Card, handSize),
-		indicies: make([]uint, handSize),
-	}
-	var index uint
-	for i := range c.hand.cards {
-		if c.playerNum == 1 {
-			index = 2 * uint(i)
-		} else if c.playerNum == 2 {
-			index = 2*uint(i) + 1
-		} else {
-			return nil, fmt.Errorf("Unsupported player number %d", c.playerNum)
+	out := make(chan struct {
+		*Hand
+		error
+	})
+	c.stateChangeRequests <- func() {
+		handSize := getHandSize(c.players)
+		c.hand = &Hand{
+			cards:    make([]*Card, handSize),
+			indicies: make([]uint, handSize),
 		}
+		var index uint
+		for i := range c.hand.cards {
+			if c.playerNum == 1 {
+				index = 2 * uint(i)
+			} else if c.playerNum == 2 {
+				index = 2*uint(i) + 1
+			} else {
+				out <- struct {
+					*Hand
+					error
+				}{nil, fmt.Errorf("Unsupported player number %d", c.playerNum)}
+				return
+			}
 
-		current, err := c.deck.Draw(index)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Unable to get hand")
+			current, err := c.deck.Draw(index)
+			if err != nil {
+				out <- struct {
+					*Hand
+					error
+				}{nil, errors.Wrapf(err, "Unable to get hand")}
+				return
+			}
+			c.hand.indicies[i] = index
+			c.hand.cards[i] = &Card{}
+			c.hand.cards[i].UnmarshalText(current)
 		}
-		c.hand.indicies[i] = index
-		c.hand.cards[i] = &Card{}
-		c.hand.cards[i].UnmarshalText(current)
+		out <- struct {
+			*Hand
+			error
+		}{c.hand, nil}
 	}
-
-	return c.hand, nil
+	temp := <-out
+	return temp.Hand, temp.error
 }
 
 // Hand returns the local player's hand
@@ -94,20 +121,28 @@ func (c *Cribbage) Quit() error {
 // Crib adds the card at the specified index within the player's hand to the
 // crib. This remove it from the player's hand.
 func (c *Cribbage) Crib(handIndex uint) error {
-	if handIndex >= uint(len(c.hand.cards)) {
-		return fmt.Errorf("Index out of bounds %d", handIndex)
+	//ensure hand has been initialized
+	c.Hand()
+	errs := make(chan error)
+	c.stateChangeRequests <- func() {
+		if handIndex >= uint(len(c.hand.cards)) {
+			errs <- fmt.Errorf("Index out of bounds %d", handIndex)
+			return
+		}
+		lastIndex := len(c.hand.cards) - 1
+		if lastIndex < 4 {
+			errs <- fmt.Errorf("Cannot add another card to crib, hand is already minimum size")
+			return
+		}
+		c.crib.cards = append(c.crib.cards, c.hand.cards[handIndex])
+		c.crib.indicies = append(c.crib.indicies, c.hand.indicies[handIndex])
+		c.hand.cards[handIndex] = c.hand.cards[lastIndex]
+		c.hand.indicies[handIndex] = c.hand.indicies[lastIndex]
+		c.hand.cards = c.hand.cards[:lastIndex]
+		c.hand.indicies = c.hand.indicies[:lastIndex]
+		errs <- nil
 	}
-	lastIndex := len(c.hand.cards) - 1
-	if lastIndex < 4 {
-		return fmt.Errorf("Cannot add another card to crib, hand is already minimum size")
-	}
-	c.crib.cards = append(c.crib.cards, c.hand.cards[handIndex])
-	c.crib.indicies = append(c.crib.indicies, c.hand.indicies[handIndex])
-	c.hand.cards[handIndex] = c.hand.cards[lastIndex]
-	c.hand.indicies[handIndex] = c.hand.indicies[lastIndex]
-	c.hand.cards = c.hand.cards[:lastIndex]
-	c.hand.indicies = c.hand.indicies[:lastIndex]
-	return nil
+	return <-errs
 }
 
 func (c *Cribbage) UI() {
