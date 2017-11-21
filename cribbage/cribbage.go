@@ -21,6 +21,7 @@ type Cribbage struct {
 	players             int
 	playerNum           int
 	hand, crib          *Hand
+	currentState        State
 	stateChangeRequests chan func()
 }
 
@@ -51,6 +52,7 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 		playerNum:           playerNum,
 		opponent:            opp,
 		crib:                &Hand{cards: make([]*Card, 0), indicies: make([]uint, 0)},
+		currentState:        DRAW_STATE,
 		stateChangeRequests: make(chan func()),
 	}
 	go func() {
@@ -193,9 +195,37 @@ func (c *Cribbage) Crib(handIndex uint) error {
 	return <-errs
 }
 
+func (c *Cribbage) updateState() {
+	done := make(chan struct{})
+	c.stateChangeRequests <- func() {
+		defer close(done)
+		switch c.currentState {
+		case DRAW_STATE:
+			if c.hand != nil {
+				c.currentState = DISCARD_STATE
+			}
+		case DISCARD_STATE:
+			if len(c.hand.cards) == 4 {
+				c.currentState = DISCARD_WAIT_STATE
+			}
+		case DISCARD_WAIT_STATE:
+			if len(c.crib.cards) == 4 {
+				c.currentState = CIRCULAR_STATE
+			}
+		case CIRCULAR_STATE:
+		case INTERNAL_STATE:
+		case CRIB_STATE:
+		case END_STATE:
+		}
+	}
+	<-done
+}
+
 func (c *Cribbage) UI() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
+		c.updateState()
+		fmt.Println(instructionsForState(c.currentState))
 		fmt.Print("> ")
 		scanner.Scan()
 		input := strings.Split(strings.TrimSpace(scanner.Text()), " ")
@@ -228,8 +258,11 @@ func (c *Cribbage) UI() {
 		case "crib":
 			fmt.Println("crib: ", RenderHand(c.crib))
 
+		case "help":
+			fmt.Println(STR_HELP)
 		default:
-			fmt.Println("Uknown command: ", input)
+			fmt.Println("Uknown command: ", input[0])
+			fmt.Println(STR_HELP)
 		}
 	}
 }
