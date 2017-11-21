@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/whereswaldon/cryptage/card"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ type Deck interface {
 	Draw(uint) (card.CardFace, error)
 	Quit()
 	Start([]card.CardFace) error
+	Size() uint
 }
 
 type Opponent interface {
@@ -56,7 +58,35 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 			req()
 		}
 	}()
+	go cribbage.listenToMessages()
 	return cribbage, nil
+}
+
+func (c *Cribbage) listenToMessages() {
+	for bytes := range c.opponent.Recieve() {
+		m, err := Decode(bytes)
+		if err != nil {
+			log.Println("Error decoding application message:", err)
+		}
+		switch m.Type {
+		case TO_CRIB:
+			log.Println("Recieved TO_CRIB")
+			c.addIndexToCrib(m.Val)
+		default:
+			log.Println("Unrecognized message type:", m.Type)
+		}
+	}
+}
+
+// sendToCribMsg sends the opponent a message informing them of which card
+// the local player has opted to add to the crib. The value sent is an absolute
+// index into the deck, rather than into the local player's hand.
+func (c *Cribbage) sentToCribMsg(deckIndex uint) error {
+	enc, err := Encode(&Message{Type: TO_CRIB, Val: deckIndex})
+	if err != nil {
+		return err
+	}
+	return c.opponent.Send(enc)
 }
 
 func (c *Cribbage) drawHand() (*Hand, error) {
@@ -118,6 +148,23 @@ func (c *Cribbage) Quit() error {
 	return nil
 }
 
+// addIndexToCrib adds the card at the given deck index to the crib.
+// This is primarily useful for adding the opponent's selections to
+// the local crib, since the local player does not know the faces
+// of those cards
+func (c *Cribbage) addIndexToCrib(deckIndex uint) error {
+	if deckIndex >= c.deck.Size() {
+		return fmt.Errorf("Index out of bounds")
+	}
+	errs := make(chan error)
+	c.stateChangeRequests <- func() {
+		c.crib.cards = append(c.crib.cards, nil)
+		c.crib.indicies = append(c.crib.indicies, deckIndex)
+		errs <- nil
+	}
+	return <-errs
+}
+
 // Crib adds the card at the specified index within the player's hand to the
 // crib. This remove it from the player's hand.
 func (c *Cribbage) Crib(handIndex uint) error {
@@ -134,6 +181,7 @@ func (c *Cribbage) Crib(handIndex uint) error {
 			errs <- fmt.Errorf("Cannot add another card to crib, hand is already minimum size")
 			return
 		}
+		c.sentToCribMsg(c.hand.indicies[handIndex])
 		c.crib.cards = append(c.crib.cards, c.hand.cards[handIndex])
 		c.crib.indicies = append(c.crib.indicies, c.hand.indicies[handIndex])
 		c.hand.cards[handIndex] = c.hand.cards[lastIndex]

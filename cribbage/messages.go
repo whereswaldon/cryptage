@@ -11,7 +11,7 @@ const (
 
 type Message struct {
 	Type int
-	Val  int
+	Val  uint
 }
 
 // Encode converts a message into a byte slice
