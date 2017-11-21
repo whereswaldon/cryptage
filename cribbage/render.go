@@ -1,6 +1,9 @@
 package cribbage
 
-import "github.com/fatih/color"
+import (
+	"fmt"
+	"github.com/fatih/color"
+)
 
 const (
 	SPADE   = "♠"
@@ -25,7 +28,7 @@ func RenderHand(hand *Hand) string {
 		if card == nil {
 			card = &Card{}
 		}
-		out += RenderCard(card)
+		out += fmt.Sprintf("%d:", i) + RenderCard(card)
 		if i < len(hand.cards) {
 			out += " "
 		}

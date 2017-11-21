@@ -6,6 +6,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/whereswaldon/cryptage/card"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type ScoreBoard struct {
@@ -13,11 +15,11 @@ type ScoreBoard struct {
 }
 
 type Cribbage struct {
-	deck      Deck
-	opponent  Opponent
-	players   int
-	playerNum int
-	hand      *Hand
+	deck       Deck
+	opponent   Opponent
+	players    int
+	playerNum  int
+	hand, crib *Hand
 }
 
 type Deck interface {
@@ -44,6 +46,7 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 		players:   2,
 		playerNum: playerNum,
 		opponent:  opp,
+		crib:      &Hand{cards: make([]*Card, 0), indicies: make([]uint, 0)},
 	}, nil
 }
 
@@ -88,14 +91,27 @@ func (c *Cribbage) Quit() error {
 	return nil
 }
 
+func (c *Cribbage) Crib(handIndex uint) error {
+	if handIndex >= uint(len(c.hand.cards)) {
+		return fmt.Errorf("Index out of bounds %d", handIndex)
+	}
+	lastIndex := len(c.hand.cards) - 1
+	c.crib.cards = append(c.crib.cards, c.hand.cards[handIndex])
+	c.crib.indicies = append(c.crib.indicies, c.hand.indicies[handIndex])
+	c.hand.cards[handIndex] = c.hand.cards[lastIndex]
+	c.hand.indicies[handIndex] = c.hand.indicies[lastIndex]
+	c.hand.cards = c.hand.cards[:lastIndex]
+	c.hand.indicies = c.hand.indicies[:lastIndex]
+	return nil
+}
+
 func (c *Cribbage) UI() {
-	input := ""
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("> ")
 		scanner.Scan()
-		input = scanner.Text()
-		switch input {
+		input := strings.Split(strings.TrimSpace(scanner.Text()), " ")
+		switch input[0] {
 		case "quit":
 			c.Quit()
 			return
@@ -104,8 +120,24 @@ func (c *Cribbage) UI() {
 			if err != nil {
 				fmt.Println(err)
 			} else {
-				fmt.Println(RenderHand(h))
+				fmt.Println("hand: ", RenderHand(h))
 			}
+		case "crib":
+			if len(input) < 2 {
+				fmt.Println("Usage: crib <card-index>")
+				continue
+			}
+			i, err := strconv.Atoi(input[1])
+			if err != nil {
+				fmt.Println("Not a valid card index! Use numbers next time")
+				continue
+			}
+			err = c.Crib(uint(i))
+			if err != nil {
+				fmt.Printf("error adding %s to crib: %v\n", input[1], c.crib)
+			}
+			fmt.Println("crib: ", RenderHand(c.crib))
+
 		default:
 			fmt.Println("Uknown command: ", input)
 		}
