@@ -14,7 +14,9 @@ const (
 
 func RenderCard(card *Card) string {
 	var printer func(...interface{}) string
-	if isRed(card) {
+	if isUnknown(card) {
+		printer = color.New(color.BgBlue, color.FgWhite).SprintFunc()
+	} else if isRed(card) {
 		printer = color.New(color.BgWhite, color.FgRed).SprintFunc()
 	} else {
 		printer = color.New(color.BgWhite, color.FgBlack).SprintFunc()
@@ -40,6 +42,10 @@ func isRed(card *Card) bool {
 	return card.Suit == "Hearts" || card.Suit == "Diamonds"
 }
 
+func isUnknown(card *Card) bool {
+	return card.Suit == "" || card.Suit == ""
+}
+
 func renderSuit(card *Card) string {
 	switch card.Suit {
 	case "Hearts":
@@ -51,7 +57,7 @@ func renderSuit(card *Card) string {
 	case "Diamonds":
 		return DIAMOND
 	default:
-		return "?"
+		return "▹"
 	}
 }
 
@@ -84,6 +90,6 @@ func renderRank(card *Card) string {
 	case "Ace":
 		return "A"
 	default:
-		return "?"
+		return "◃"
 	}
 }
