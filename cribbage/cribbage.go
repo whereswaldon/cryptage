@@ -215,7 +215,10 @@ func (c *Cribbage) Crib(handIndex uint) error {
 	c.Hand()
 	errs := make(chan error)
 	c.stateChangeRequests <- func() {
-		if handIndex >= uint(len(c.hand.cards)) {
+		if c.currentState != DISCARD_STATE && c.currentState != DRAW_STATE {
+			fmt.Errorf("You can't discard to the crib right now")
+			return
+		} else if handIndex >= uint(len(c.hand.cards)) {
 			errs <- fmt.Errorf("Index out of bounds %d", handIndex)
 			return
 		}
@@ -240,11 +243,15 @@ func (c *Cribbage) Crib(handIndex uint) error {
 func (c *Cribbage) Cut(deckIndex uint) error {
 	errs := make(chan error)
 	c.stateChangeRequests <- func() {
-		if deckIndex >= uint(c.deck.Size()) {
+		if c.currentState != CUT_STATE {
+			errs <- fmt.Errorf("You can't cut the deck right now")
+			return
+		} else if deckIndex >= uint(c.deck.Size()) {
 			errs <- fmt.Errorf("Index out of bounds %d", deckIndex)
 			return
 		} else if deckIndex < 12 { //cutting into cards that have been dealt
 			errs <- fmt.Errorf("Cannot cut at index %d, cards 0-12 are in player hands.", deckIndex)
+			return
 		}
 		c.sentCutCardMsg(deckIndex)
 		card, err := c.deck.Draw(deckIndex)
