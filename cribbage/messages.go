@@ -6,7 +6,8 @@ import (
 )
 
 const (
-	TO_CRIB = 0
+	TO_CRIB  = 0
+	CUT_CARD = 1
 )
 
 type Message struct {

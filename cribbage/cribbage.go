@@ -20,8 +20,10 @@ type Cribbage struct {
 	opponent            Opponent
 	players             int
 	playerNum           int
+	dealer              int
 	hand, crib          *Hand
 	currentState        State
+	cutCard             *Card
 	stateChangeRequests chan func()
 }
 
@@ -51,6 +53,7 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 		players:             2,
 		playerNum:           playerNum,
 		opponent:            opp,
+		dealer:              1, //player 1 is always first dealer
 		crib:                &Hand{cards: make([]*Card, 0), indicies: make([]uint, 0)},
 		currentState:        DRAW_STATE,
 		stateChangeRequests: make(chan func()),
@@ -74,6 +77,9 @@ func (c *Cribbage) listenToMessages() {
 		case TO_CRIB:
 			log.Println("Recieved TO_CRIB")
 			c.addIndexToCrib(m.Val)
+		case CUT_CARD:
+			log.Println("Recieved CUT_CARD")
+			c.setCutCard(m.Val)
 		default:
 			log.Println("Unrecognized message type:", m.Type)
 		}
@@ -85,6 +91,17 @@ func (c *Cribbage) listenToMessages() {
 // index into the deck, rather than into the local player's hand.
 func (c *Cribbage) sentToCribMsg(deckIndex uint) error {
 	enc, err := Encode(&Message{Type: TO_CRIB, Val: deckIndex})
+	if err != nil {
+		return err
+	}
+	return c.opponent.Send(enc)
+}
+
+// sendCutCardMsg sends the opponent a message informing them of which card
+// the local player is cutting as the shared card
+
+func (c *Cribbage) sentCutCardMsg(deckIndex uint) error {
+	enc, err := Encode(&Message{Type: CUT_CARD, Val: deckIndex})
 	if err != nil {
 		return err
 	}
@@ -167,6 +184,30 @@ func (c *Cribbage) addIndexToCrib(deckIndex uint) error {
 	return <-errs
 }
 
+func (c *Cribbage) setCutCard(deckIndex uint) error {
+	if deckIndex > c.deck.Size() {
+		return fmt.Errorf("Index out of bounds")
+	} else if deckIndex < 12 {
+		return fmt.Errorf("Tried to set cut card to a card in a current player's hand")
+	}
+	errs := make(chan error)
+	c.stateChangeRequests <- func() {
+		card, err := c.deck.Draw(deckIndex)
+		if err != nil {
+			errs <- err
+			return
+		}
+		decCard := &Card{}
+		err = decCard.UnmarshalText(card)
+		if err != nil {
+			errs <- err
+			return
+		}
+		c.cutCard = decCard
+	}
+	return <-errs
+}
+
 // Crib adds the card at the specified index within the player's hand to the
 // crib. This remove it from the player's hand.
 func (c *Cribbage) Crib(handIndex uint) error {
@@ -195,6 +236,34 @@ func (c *Cribbage) Crib(handIndex uint) error {
 	return <-errs
 }
 
+// Cut attempts to cut the deck at the specified card
+func (c *Cribbage) Cut(deckIndex uint) error {
+	errs := make(chan error)
+	c.stateChangeRequests <- func() {
+		if deckIndex >= uint(c.deck.Size()) {
+			errs <- fmt.Errorf("Index out of bounds %d", deckIndex)
+			return
+		} else if deckIndex < 12 { //cutting into cards that have been dealt
+			errs <- fmt.Errorf("Cannot cut at index %d, cards 0-12 are in player hands.", deckIndex)
+		}
+		c.sentCutCardMsg(deckIndex)
+		card, err := c.deck.Draw(deckIndex)
+		if err != nil {
+			errs <- err
+			return
+		}
+		decodedCard := &Card{}
+		err = decodedCard.UnmarshalText(card)
+		if err != nil {
+			errs <- err
+			return
+		}
+		c.cutCard = decodedCard
+		errs <- nil
+	}
+	return <-errs
+}
+
 func (c *Cribbage) updateState() {
 	done := make(chan struct{})
 	c.stateChangeRequests <- func() {
@@ -210,6 +279,18 @@ func (c *Cribbage) updateState() {
 			}
 		case DISCARD_WAIT_STATE:
 			if len(c.crib.cards) == 4 {
+				if c.dealer == c.playerNum {
+					c.currentState = CUT_WAIT_STATE
+				} else {
+					c.currentState = CUT_STATE
+				}
+			}
+		case CUT_STATE:
+			if c.cutCard != nil {
+				c.currentState = CIRCULAR_STATE
+			}
+		case CUT_WAIT_STATE:
+			if c.cutCard != nil {
 				c.currentState = CIRCULAR_STATE
 			}
 		case CIRCULAR_STATE:
@@ -253,11 +334,31 @@ func (c *Cribbage) UI() {
 			err = c.Crib(uint(i))
 			if err != nil {
 				fmt.Printf("error adding %s to crib: %v\n", input[1], err)
+				continue
 			}
 			fmt.Println("crib: ", RenderHand(c.crib))
 		case "crib":
 			fmt.Println("crib: ", RenderHand(c.crib))
-
+		case "cut":
+			if c.cutCard != nil {
+				fmt.Println("cut: ", RenderCard(c.cutCard))
+			}
+		case "cutAt":
+			if len(input) < 2 {
+				fmt.Println("Usage: cut <card-index>")
+				continue
+			}
+			i, err := strconv.Atoi(input[1])
+			if err != nil {
+				fmt.Println("Not a valid card index! Use numbers next time")
+				continue
+			}
+			err = c.Cut(uint(i))
+			if err != nil {
+				fmt.Printf("error cutting card %d: %v", i, err)
+				continue
+			}
+			fmt.Println("cut: ", RenderCard(c.cutCard))
 		case "help":
 			fmt.Println(STR_HELP)
 		default:
