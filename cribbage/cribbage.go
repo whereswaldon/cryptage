@@ -342,10 +342,12 @@ func (c *Cribbage) UI() {
 		case "cut":
 			if c.cutCard != nil {
 				fmt.Println("cut: ", RenderCard(c.cutCard))
+			} else {
+				fmt.Println("No cut card yet")
 			}
 		case "cutAt":
 			if len(input) < 2 {
-				fmt.Println("Usage: cut <card-index>")
+				fmt.Println("Usage: cutAt <card-index>")
 				continue
 			}
 			i, err := strconv.Atoi(input[1])
