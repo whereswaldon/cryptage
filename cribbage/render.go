@@ -41,7 +41,8 @@ func RenderHand(hand *Hand) string {
 func RenderSeq(seq *Sequence) string {
 	out := ""
 	for i := 0; i < seq.Size(); i++ {
-		out += fmt.Sprintf("%d:", i) + RenderCard(seq.Get(i)) + " "
+		player, card := seq.Get(i)
+		out += fmt.Sprintf("p%d:", player) + RenderCard(card) + " "
 	}
 	return out
 }

@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+const DEALER_PLAYER_NUM = 1
+
 type ScoreBoard struct {
 	p1current, p1last, p2current, p2last uint
 }
@@ -23,6 +25,8 @@ type Cribbage struct {
 	dealer              int
 	hand, crib          *Hand
 	currentState        State
+	currentSequence     *Sequence
+	myTurn              bool
 	cutCard             *Card
 	stateChangeRequests chan func()
 }
@@ -51,9 +55,10 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 	cribbage := &Cribbage{
 		deck:                deck,
 		players:             2,
+		myTurn:              playerNum == DEALER_PLAYER_NUM,
 		playerNum:           playerNum,
 		opponent:            opp,
-		dealer:              1, //player 1 is always first dealer
+		dealer:              DEALER_PLAYER_NUM, //player 1 is always first dealer
 		crib:                &Hand{cards: make([]*Card, 0), indicies: make([]uint, 0)},
 		currentState:        DRAW_STATE,
 		stateChangeRequests: make(chan func()),
@@ -267,6 +272,26 @@ func (c *Cribbage) Cut(deckIndex uint) error {
 		}
 		c.cutCard = decodedCard
 		errs <- nil
+	}
+	return <-errs
+}
+
+func (c *Cribbage) PlayCard(handIndex uint) error {
+	if handIndex >= uint(getHandSize(c.players)) {
+		return fmt.Errorf("Index out of bounds")
+	} else if !c.myTurn {
+		return fmt.Errorf("Cannot play cards when it isn't your turn!")
+	}
+
+	errs := make(chan error)
+	c.stateChangeRequests <- func() {
+		card := c.hand.cards[handIndex]
+		if !c.currentSequence.CanPlay(card) {
+			errs <- fmt.Errorf("Card %s cannot be played!", card)
+			return
+		}
+		c.currentSequence.Play(c.playerNum, card)
+		c.myTurn = false
 	}
 	return <-errs
 }
