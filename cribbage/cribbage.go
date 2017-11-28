@@ -205,22 +205,17 @@ func (c *Cribbage) Crib(handIndex uint) error {
 	return c.requestStateChange(func() error {
 		if c.currentState != DISCARD_STATE && c.currentState != DRAW_STATE {
 			return fmt.Errorf("You can't discard to the crib right now")
-		} else if handIndex >= uint(len(c.hand.cards)) {
-			return fmt.Errorf("Index out of bounds %d", handIndex)
 		}
-		lastIndex := len(c.hand.cards) - 1
-		if lastIndex < 4 {
-			return fmt.Errorf("Cannot add another card to crib, hand is already minimum size")
+		card, index, err := c.hand.Remove(handIndex)
+		if err != nil {
+			return errors.Wrapf(err, "Cannot send card to crib, couldn't remove from hand")
+		}
+		if err := c.crib.Add(card, index); err != nil {
+			return errors.Wrapf(err, "Couldn't add card to crib")
 		}
 		if err := c.opponent.sendToCribMsg(c.hand.indicies[handIndex]); err != nil {
-			return err
+			return errors.Wrapf(err, "Couldn't notify opponent of sending card to Crib")
 		}
-		c.crib.cards = append(c.crib.cards, c.hand.cards[handIndex])
-		c.crib.indicies = append(c.crib.indicies, c.hand.indicies[handIndex])
-		c.hand.cards[handIndex] = c.hand.cards[lastIndex]
-		c.hand.indicies[handIndex] = c.hand.indicies[lastIndex]
-		c.hand.cards = c.hand.cards[:lastIndex]
-		c.hand.indicies = c.hand.indicies[:lastIndex]
 		return nil
 	})
 }
