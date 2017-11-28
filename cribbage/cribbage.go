@@ -19,9 +19,7 @@ type ScoreBoard struct {
 type Cribbage struct {
 	deck                *CribbageDeck
 	opponent            *Messenger
-	players             int
-	playerNum           int
-	dealer              int
+	players             *PlayerInfo
 	hand, crib          *Hand
 	currentState        State
 	currentSequence     *Sequence
@@ -48,11 +46,9 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 	}
 	cribbage := &Cribbage{
 		deck:                cDeck,
-		players:             2,
+		players:             NewPlayerInfo(2, playerNum, DEALER_PLAYER_NUM),
 		myTurn:              playerNum != DEALER_PLAYER_NUM,
-		playerNum:           playerNum,
 		opponent:            opponent,
-		dealer:              DEALER_PLAYER_NUM, //player 1 is always first dealer
 		crib:                &Hand{cards: make([]*Card, 0), indicies: make([]uint, 0)},
 		currentState:        DRAW_STATE,
 		currentSequence:     NewSeq(),
@@ -99,21 +95,18 @@ func (c *Cribbage) drawHand() (*Hand, error) {
 	out := make(chan *Hand, 1) // buffered so that a single send doesn't block
 	err := c.requestStateChange(func() error {
 		defer close(out)
-		handSize := getHandSize(c.players)
+		handSize := getHandSize(c.players.NumPlayers)
 		c.hand = &Hand{
 			cards:    make([]*Card, handSize),
 			indicies: make([]uint, handSize),
 		}
 		var index uint
 		for i := range c.hand.cards {
-			if c.playerNum == 1 {
+			if !c.players.LocalPlayerIsDealer() {
 				index = 2 * uint(i)
-			} else if c.playerNum == 2 {
-				index = 2*uint(i) + 1
 			} else {
-				return fmt.Errorf("Unsupported player number %d", c.playerNum)
+				index = 2*uint(i) + 1
 			}
-
 			current, err := c.deck.Draw(index)
 			if err != nil {
 				return errors.Wrapf(err, "Unable to get hand")
@@ -198,11 +191,7 @@ func (c *Cribbage) opponentPlayedCard(deckIndex uint) error {
 		if !c.currentSequence.CanPlay(card) {
 			return fmt.Errorf("Cannot play card %v", card)
 		}
-		opponentNum := 1
-		if c.playerNum == 1 {
-			opponentNum = 2
-		}
-		c.currentSequence.Play(opponentNum, card)
+		c.currentSequence.Play(c.players.OpponentNum(), card)
 		c.myTurn = true
 		return nil
 	})
@@ -259,7 +248,7 @@ func (c *Cribbage) Cut(deckIndex uint) error {
 }
 
 func (c *Cribbage) PlayCard(handIndex uint) error {
-	if handIndex >= uint(getHandSize(c.players)) {
+	if handIndex >= uint(getHandSize(c.players.NumPlayers)) {
 		return fmt.Errorf("Index out of bounds")
 	} else if !c.myTurn {
 		return fmt.Errorf("Cannot play cards when it isn't your turn!")
@@ -274,7 +263,7 @@ func (c *Cribbage) PlayCard(handIndex uint) error {
 		if !c.currentSequence.CanPlay(card) {
 			return fmt.Errorf("Card %s cannot be played!", card)
 		}
-		c.currentSequence.Play(c.playerNum, card)
+		c.currentSequence.Play(c.players.LocalPlayerNum, card)
 		c.myTurn = false
 		return nil
 	})
@@ -293,7 +282,7 @@ func (c *Cribbage) updateState() {
 			}
 		case DISCARD_WAIT_STATE:
 			if len(c.crib.cards) == 4 {
-				if c.dealer == c.playerNum {
+				if c.players.LocalPlayerIsDealer() {
 					c.currentState = CUT_WAIT_STATE
 				} else {
 					c.currentState = CUT_STATE
