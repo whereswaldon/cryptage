@@ -53,7 +53,7 @@ func RenderSeq(seq *Sequence) string {
 		player, card := seq.Get(i)
 		out += fmt.Sprintf("p%d:", player) + RenderCard(card) + " "
 	}
-	return out
+	return out + fmt.Sprintf("total: %d", seq.Total())
 }
 
 func isRed(card *Card) bool {
