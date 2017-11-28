@@ -137,11 +137,9 @@ func (c *Cribbage) sendPlayCardMsg(deckIndex uint) error {
 }
 
 func (c *Cribbage) drawHand() (*Hand, error) {
-	out := make(chan struct {
-		*Hand
-		error
-	})
-	c.stateChangeRequests <- func() {
+	out := make(chan *Hand, 1) // buffered so that a single send doesn't block
+	err := c.requestStateChange(func() error {
+		defer close(out)
 		handSize := getHandSize(c.players)
 		c.hand = &Hand{
 			cards:    make([]*Card, handSize),
@@ -154,32 +152,22 @@ func (c *Cribbage) drawHand() (*Hand, error) {
 			} else if c.playerNum == 2 {
 				index = 2*uint(i) + 1
 			} else {
-				out <- struct {
-					*Hand
-					error
-				}{nil, fmt.Errorf("Unsupported player number %d", c.playerNum)}
-				return
+				return fmt.Errorf("Unsupported player number %d", c.playerNum)
 			}
 
 			current, err := c.deck.Draw(index)
 			if err != nil {
-				out <- struct {
-					*Hand
-					error
-				}{nil, errors.Wrapf(err, "Unable to get hand")}
-				return
+				return errors.Wrapf(err, "Unable to get hand")
 			}
 			c.hand.indicies[i] = index
 			c.hand.cards[i] = &Card{}
 			c.hand.cards[i].UnmarshalText(current)
 		}
-		out <- struct {
-			*Hand
-			error
-		}{c.hand, nil}
-	}
-	temp := <-out
-	return temp.Hand, temp.error
+		out <- c.hand
+		return nil
+	})
+	hand := <-out
+	return hand, err
 }
 
 // Hand returns the local player's hand
@@ -195,6 +183,18 @@ func (c *Cribbage) Quit() error {
 	return nil
 }
 
+// requestStateChange executes the provided function atomically on the
+// game's state-managing goroutine. Using this function is the only way
+// in which game state should be modified once the game has been initialized.
+// Otherwise, you invite race conditions.
+func (c *Cribbage) requestStateChange(req func() error) error {
+	errs := make(chan error)
+	c.stateChangeRequests <- func() {
+		errs <- req()
+	}
+	return <-errs
+}
+
 // addIndexToCrib adds the card at the given deck index to the crib.
 // This is primarily useful for adding the opponent's selections to
 // the local crib, since the local player does not know the faces
@@ -203,13 +203,11 @@ func (c *Cribbage) addIndexToCrib(deckIndex uint) error {
 	if deckIndex >= c.deck.Size() {
 		return fmt.Errorf("Index out of bounds")
 	}
-	errs := make(chan error)
-	c.stateChangeRequests <- func() {
+	return c.requestStateChange(func() error {
 		c.crib.cards = append(c.crib.cards, nil)
 		c.crib.indicies = append(c.crib.indicies, deckIndex)
-		errs <- nil
-	}
-	return <-errs
+		return nil
+	})
 }
 
 func (c *Cribbage) setCutCard(deckIndex uint) error {
@@ -218,23 +216,19 @@ func (c *Cribbage) setCutCard(deckIndex uint) error {
 	} else if deckIndex < 12 {
 		return fmt.Errorf("Tried to set cut card to a card in a current player's hand")
 	}
-	errs := make(chan error)
-	c.stateChangeRequests <- func() {
+	return c.requestStateChange(func() error {
 		card, err := c.deck.Draw(deckIndex)
 		if err != nil {
-			errs <- err
-			return
+			return err
 		}
 		decCard := &Card{}
 		err = decCard.UnmarshalText(card)
 		if err != nil {
-			errs <- err
-			return
+			return err
 		}
 		c.cutCard = decCard
-		errs <- nil
-	}
-	return <-errs
+		return nil
+	})
 }
 
 // opponentPlayedCard indicates that the opponent has played the specified card
@@ -243,18 +237,15 @@ func (c *Cribbage) opponentPlayedCard(deckIndex uint) error {
 	if deckIndex >= c.deck.Size() {
 		return fmt.Errorf("Index out of bounds")
 	}
-	errs := make(chan error)
-	c.stateChangeRequests <- func() {
+	return c.requestStateChange(func() error {
 		cardData, err := c.deck.Draw(deckIndex)
 		if err != nil {
-			errs <- fmt.Errorf("Unable to draw card played by opponent: %v", err)
-			return
+			return fmt.Errorf("Unable to draw card played by opponent: %v", err)
 		}
 		card := &Card{}
 		card.UnmarshalText(cardData)
 		if !c.currentSequence.CanPlay(card) {
-			errs <- fmt.Errorf("Cannot play card %v", card)
-			return
+			return fmt.Errorf("Cannot play card %v", card)
 		}
 		opponentNum := 1
 		if c.playerNum == 1 {
@@ -262,9 +253,8 @@ func (c *Cribbage) opponentPlayedCard(deckIndex uint) error {
 		}
 		c.currentSequence.Play(opponentNum, card)
 		c.myTurn = true
-		errs <- nil
-	}
-	return <-errs
+		return nil
+	})
 }
 
 // Crib adds the card at the specified index within the player's hand to the
@@ -272,19 +262,15 @@ func (c *Cribbage) opponentPlayedCard(deckIndex uint) error {
 func (c *Cribbage) Crib(handIndex uint) error {
 	//ensure hand has been initialized
 	c.Hand()
-	errs := make(chan error)
-	c.stateChangeRequests <- func() {
+	return c.requestStateChange(func() error {
 		if c.currentState != DISCARD_STATE && c.currentState != DRAW_STATE {
-			fmt.Errorf("You can't discard to the crib right now")
-			return
+			return fmt.Errorf("You can't discard to the crib right now")
 		} else if handIndex >= uint(len(c.hand.cards)) {
-			errs <- fmt.Errorf("Index out of bounds %d", handIndex)
-			return
+			return fmt.Errorf("Index out of bounds %d", handIndex)
 		}
 		lastIndex := len(c.hand.cards) - 1
 		if lastIndex < 4 {
-			errs <- fmt.Errorf("Cannot add another card to crib, hand is already minimum size")
-			return
+			return fmt.Errorf("Cannot add another card to crib, hand is already minimum size")
 		}
 		c.sentToCribMsg(c.hand.indicies[handIndex])
 		c.crib.cards = append(c.crib.cards, c.hand.cards[handIndex])
@@ -293,41 +279,33 @@ func (c *Cribbage) Crib(handIndex uint) error {
 		c.hand.indicies[handIndex] = c.hand.indicies[lastIndex]
 		c.hand.cards = c.hand.cards[:lastIndex]
 		c.hand.indicies = c.hand.indicies[:lastIndex]
-		errs <- nil
-	}
-	return <-errs
+		return nil
+	})
 }
 
 // Cut attempts to cut the deck at the specified card
 func (c *Cribbage) Cut(deckIndex uint) error {
-	errs := make(chan error)
-	c.stateChangeRequests <- func() {
+	return c.requestStateChange(func() error {
 		if c.currentState != CUT_STATE {
-			errs <- fmt.Errorf("You can't cut the deck right now")
-			return
+			return fmt.Errorf("You can't cut the deck right now")
 		} else if deckIndex >= uint(c.deck.Size()) {
-			errs <- fmt.Errorf("Index out of bounds %d", deckIndex)
-			return
+			return fmt.Errorf("Index out of bounds %d", deckIndex)
 		} else if deckIndex < 12 { //cutting into cards that have been dealt
-			errs <- fmt.Errorf("Cannot cut at index %d, cards 0-12 are in player hands.", deckIndex)
-			return
+			return fmt.Errorf("Cannot cut at index %d, cards 0-12 are in player hands.", deckIndex)
 		}
 		c.sentCutCardMsg(deckIndex)
 		card, err := c.deck.Draw(deckIndex)
 		if err != nil {
-			errs <- err
-			return
+			return err
 		}
 		decodedCard := &Card{}
 		err = decodedCard.UnmarshalText(card)
 		if err != nil {
-			errs <- err
-			return
+			return err
 		}
 		c.cutCard = decodedCard
-		errs <- nil
-	}
-	return <-errs
+		return nil
+	})
 }
 
 func (c *Cribbage) PlayCard(handIndex uint) error {
@@ -337,29 +315,23 @@ func (c *Cribbage) PlayCard(handIndex uint) error {
 		return fmt.Errorf("Cannot play cards when it isn't your turn!")
 	}
 
-	errs := make(chan error)
-	c.stateChangeRequests <- func() {
+	return c.requestStateChange(func() error {
 		err := c.sendPlayCardMsg(c.hand.indicies[handIndex])
 		if err != nil {
-			errs <- fmt.Errorf("Error sending played card to other player: %v", err)
-			return
+			return fmt.Errorf("Error sending played card to other player: %v", err)
 		}
 		card := c.hand.cards[handIndex]
 		if !c.currentSequence.CanPlay(card) {
-			errs <- fmt.Errorf("Card %s cannot be played!", card)
-			return
+			return fmt.Errorf("Card %s cannot be played!", card)
 		}
 		c.currentSequence.Play(c.playerNum, card)
 		c.myTurn = false
-		errs <- nil
-	}
-	return <-errs
+		return nil
+	})
 }
 
 func (c *Cribbage) updateState() {
-	done := make(chan struct{})
-	c.stateChangeRequests <- func() {
-		defer close(done)
+	_ = c.requestStateChange(func() error {
 		switch c.currentState {
 		case DRAW_STATE:
 			if c.hand != nil {
@@ -397,8 +369,8 @@ func (c *Cribbage) updateState() {
 		case CRIB_STATE:
 		case END_STATE:
 		}
-	}
-	<-done
+		return nil
+	})
 }
 
 func (c *Cribbage) UI() {
