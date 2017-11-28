@@ -37,9 +37,6 @@ func (h *Hand) Remove(handIndex uint) (*Card, uint, error) {
 }
 
 func (h *Hand) Add(card *Card, deckIndex uint) error {
-	if h.Size() >= HAND_SIZE {
-		return fmt.Errorf("Cannot add to hand of MAX_SIZE")
-	}
 	h.cards = append(h.cards, card)
 	h.indicies = append(h.indicies, deckIndex)
 	return nil
@@ -67,4 +64,17 @@ func getHandSize(numPlayers int) int {
 	default:
 		return 0
 	}
+}
+
+func deckIndiciesForPlayer(pi *PlayerInfo) []uint {
+	indices := make([]uint, getHandSize(pi.NumPlayers))
+	for i := range indices {
+		indices[i] = 2 * uint(i)
+	}
+	if pi.LocalPlayerIsDealer() {
+		for i := range indices {
+			indices[i] += 1
+		}
+	}
+	return indices
 }

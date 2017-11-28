@@ -49,7 +49,7 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 		players:             NewPlayerInfo(2, playerNum, DEALER_PLAYER_NUM),
 		myTurn:              playerNum != DEALER_PLAYER_NUM,
 		opponent:            opponent,
-		crib:                &Hand{cards: make([]*Card, 0), indicies: make([]uint, 0)},
+		crib:                NewHand(),
 		currentState:        DRAW_STATE,
 		currentSequence:     NewSeq(),
 		stateChangeRequests: make(chan func()),
@@ -95,24 +95,14 @@ func (c *Cribbage) drawHand() (*Hand, error) {
 	out := make(chan *Hand, 1) // buffered so that a single send doesn't block
 	err := c.requestStateChange(func() error {
 		defer close(out)
-		handSize := getHandSize(c.players.NumPlayers)
-		c.hand = &Hand{
-			cards:    make([]*Card, handSize),
-			indicies: make([]uint, handSize),
-		}
-		var index uint
-		for i := range c.hand.cards {
-			if !c.players.LocalPlayerIsDealer() {
-				index = 2 * uint(i)
-			} else {
-				index = 2*uint(i) + 1
-			}
+		c.hand = NewHand()
+		indicies := deckIndiciesForPlayer(c.players)
+		for _, index := range indicies {
 			current, err := c.deck.Draw(index)
 			if err != nil {
 				return errors.Wrapf(err, "Unable to get hand")
 			}
-			c.hand.indicies[i] = index
-			c.hand.cards[i] = current
+			c.hand.Add(current, index)
 		}
 		out <- c.hand
 		return nil
@@ -155,8 +145,7 @@ func (c *Cribbage) addIndexToCrib(deckIndex uint) error {
 		return fmt.Errorf("Index out of bounds")
 	}
 	return c.requestStateChange(func() error {
-		c.crib.cards = append(c.crib.cards, nil)
-		c.crib.indicies = append(c.crib.indicies, deckIndex)
+		c.crib.Add(nil, deckIndex)
 		return nil
 	})
 }
@@ -254,7 +243,10 @@ func (c *Cribbage) PlayCard(handIndex uint) error {
 		if err != nil {
 			return fmt.Errorf("Error sending played card to other player: %v", err)
 		}
-		card := c.hand.cards[handIndex]
+		card, _, err := c.hand.Get(handIndex)
+		if err != nil {
+			return err
+		}
 		if !c.currentSequence.CanPlay(card) {
 			return fmt.Errorf("Card %s cannot be played!", card)
 		}
@@ -272,11 +264,11 @@ func (c *Cribbage) updateState() {
 				c.currentState = DISCARD_STATE
 			}
 		case DISCARD_STATE:
-			if len(c.hand.cards) == 4 {
+			if c.hand.Size() == 4 {
 				c.currentState = DISCARD_WAIT_STATE
 			}
 		case DISCARD_WAIT_STATE:
-			if len(c.crib.cards) == 4 {
+			if c.crib.Size() == 4 {
 				if c.players.LocalPlayerIsDealer() {
 					c.currentState = CUT_WAIT_STATE
 				} else {
