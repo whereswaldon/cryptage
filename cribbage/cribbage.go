@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/whereswaldon/cryptage/card"
 	"log"
 	"os"
 	"strconv"
@@ -29,13 +28,6 @@ type Cribbage struct {
 	myTurn              bool
 	cutCard             *Card
 	stateChangeRequests chan func()
-}
-
-type Deck interface {
-	Draw(uint) (card.CardFace, error)
-	Quit()
-	Start([]card.CardFace) error
-	Size() uint
 }
 
 type Opponent interface {
