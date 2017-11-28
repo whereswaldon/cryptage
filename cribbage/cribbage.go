@@ -202,7 +202,7 @@ func (c *Cribbage) Crib(handIndex uint) error {
 		if err := c.crib.Add(card, index); err != nil {
 			return errors.Wrapf(err, "Couldn't add card to crib")
 		}
-		if err := c.opponent.sendToCribMsg(c.hand.indicies[handIndex]); err != nil {
+		if err := c.opponent.sendToCribMsg(index); err != nil {
 			return errors.Wrapf(err, "Couldn't notify opponent of sending card to Crib")
 		}
 		return nil
@@ -239,14 +239,15 @@ func (c *Cribbage) PlayCard(handIndex uint) error {
 	}
 
 	return c.requestStateChange(func() error {
-		err := c.opponent.sendPlayCardMsg(c.hand.indicies[handIndex])
-		if err != nil {
-			return fmt.Errorf("Error sending played card to other player: %v", err)
-		}
-		card, _, err := c.hand.Get(handIndex)
+		card, deckIndex, err := c.hand.Get(handIndex)
 		if err != nil {
 			return err
 		}
+		err = c.opponent.sendPlayCardMsg(deckIndex)
+		if err != nil {
+			return fmt.Errorf("Error sending played card to other player: %v", err)
+		}
+
 		if !c.currentSequence.CanPlay(card) {
 			return fmt.Errorf("Card %s cannot be played!", card)
 		}
