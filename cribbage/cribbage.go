@@ -17,7 +17,7 @@ type ScoreBoard struct {
 }
 
 type Cribbage struct {
-	deck                Deck
+	deck                *CribbageDeck
 	opponent            Opponent
 	players             int
 	playerNum           int
@@ -43,9 +43,12 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 	} else if playerNum < 1 || playerNum > 2 {
 		return nil, fmt.Errorf("Illegal playerNum %d", playerNum)
 	}
-
+	cDeck, err := NewCribbageDeck(deck)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Unable to create CribbageDeck from supplied deck")
+	}
 	cribbage := &Cribbage{
-		deck:                deck,
+		deck:                cDeck,
 		players:             2,
 		myTurn:              playerNum != DEALER_PLAYER_NUM,
 		playerNum:           playerNum,
@@ -152,8 +155,7 @@ func (c *Cribbage) drawHand() (*Hand, error) {
 				return errors.Wrapf(err, "Unable to get hand")
 			}
 			c.hand.indicies[i] = index
-			c.hand.cards[i] = &Card{}
-			c.hand.cards[i].UnmarshalText(current)
+			c.hand.cards[i] = current
 		}
 		out <- c.hand
 		return nil
@@ -213,12 +215,7 @@ func (c *Cribbage) setCutCard(deckIndex uint) error {
 		if err != nil {
 			return err
 		}
-		decCard := &Card{}
-		err = decCard.UnmarshalText(card)
-		if err != nil {
-			return err
-		}
-		c.cutCard = decCard
+		c.cutCard = card
 		return nil
 	})
 }
@@ -230,12 +227,10 @@ func (c *Cribbage) opponentPlayedCard(deckIndex uint) error {
 		return fmt.Errorf("Index out of bounds")
 	}
 	return c.requestStateChange(func() error {
-		cardData, err := c.deck.Draw(deckIndex)
+		card, err := c.deck.Draw(deckIndex)
 		if err != nil {
 			return fmt.Errorf("Unable to draw card played by opponent: %v", err)
 		}
-		card := &Card{}
-		card.UnmarshalText(cardData)
 		if !c.currentSequence.CanPlay(card) {
 			return fmt.Errorf("Cannot play card %v", card)
 		}
@@ -290,12 +285,7 @@ func (c *Cribbage) Cut(deckIndex uint) error {
 		if err != nil {
 			return err
 		}
-		decodedCard := &Card{}
-		err = decodedCard.UnmarshalText(card)
-		if err != nil {
-			return err
-		}
-		c.cutCard = decodedCard
+		c.cutCard = card
 		return nil
 	})
 }
