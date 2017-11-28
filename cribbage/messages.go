@@ -6,8 +6,10 @@ import (
 )
 
 const (
-	TO_CRIB  = 0
-	CUT_CARD = 1
+	TO_CRIB     = 0
+	CUT_CARD    = 1
+	PLAYED_CARD = 2
+	PASSED_TURN = 3
 )
 
 type Message struct {

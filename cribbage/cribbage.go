@@ -82,10 +82,19 @@ func (c *Cribbage) listenToMessages() {
 		switch m.Type {
 		case TO_CRIB:
 			log.Println("Recieved TO_CRIB")
-			c.addIndexToCrib(m.Val)
+			if err = c.addIndexToCrib(m.Val); err != nil {
+				log.Println(err)
+			}
 		case CUT_CARD:
 			log.Println("Recieved CUT_CARD")
-			c.setCutCard(m.Val)
+			if err = c.setCutCard(m.Val); err != nil {
+				log.Println(err)
+			}
+		case PLAYED_CARD:
+			log.Println("Recieved PLAYED_CARD")
+			if err = c.opponentPlayedCard(m.Val); err != nil {
+				log.Println(err)
+			}
 		default:
 			log.Println("Unrecognized message type:", m.Type)
 		}
@@ -100,6 +109,7 @@ func (c *Cribbage) sentToCribMsg(deckIndex uint) error {
 	if err != nil {
 		return err
 	}
+	log.Println("Sending TO_CRIB")
 	return c.opponent.Send(enc)
 }
 
@@ -111,6 +121,18 @@ func (c *Cribbage) sentCutCardMsg(deckIndex uint) error {
 	if err != nil {
 		return err
 	}
+	log.Println("Sending CUT_CARD")
+	return c.opponent.Send(enc)
+}
+
+// sendPlayCardMessage sends the opponent a notification that a card has been
+// played in the circular count
+func (c *Cribbage) sendPlayCardMsg(deckIndex uint) error {
+	enc, err := Encode(&Message{Type: PLAYED_CARD, Val: deckIndex})
+	if err != nil {
+		return err
+	}
+	log.Println("Sending PLAYED_CARD")
 	return c.opponent.Send(enc)
 }
 
@@ -214,6 +236,36 @@ func (c *Cribbage) setCutCard(deckIndex uint) error {
 	return <-errs
 }
 
+// opponentPlayedCard indicates that the opponent has played the specified card
+// within the circular count.
+func (c *Cribbage) opponentPlayedCard(deckIndex uint) error {
+	if deckIndex >= c.deck.Size() {
+		return fmt.Errorf("Index out of bounds")
+	}
+	errs := make(chan error)
+	c.stateChangeRequests <- func() {
+		cardData, err := c.deck.Draw(deckIndex)
+		if err != nil {
+			errs <- fmt.Errorf("Unable to draw card played by opponent: %v", err)
+			return
+		}
+		card := &Card{}
+		card.UnmarshalText(cardData)
+		if !c.currentSequence.CanPlay(card) {
+			errs <- fmt.Errorf("Cannot play card %v", card)
+			return
+		}
+		opponentNum := 1
+		if c.playerNum == 1 {
+			opponentNum = 2
+		}
+		c.currentSequence.Play(opponentNum, card)
+		c.myTurn = true
+		errs <- nil
+	}
+	return <-errs
+}
+
 // Crib adds the card at the specified index within the player's hand to the
 // crib. This remove it from the player's hand.
 func (c *Cribbage) Crib(handIndex uint) error {
@@ -286,6 +338,11 @@ func (c *Cribbage) PlayCard(handIndex uint) error {
 
 	errs := make(chan error)
 	c.stateChangeRequests <- func() {
+		err := c.sendPlayCardMsg(c.hand.indicies[handIndex])
+		if err != nil {
+			errs <- fmt.Errorf("Error sending played card to other player: %v", err)
+			return
+		}
 		card := c.hand.cards[handIndex]
 		if !c.currentSequence.CanPlay(card) {
 			errs <- fmt.Errorf("Card %s cannot be played!", card)
