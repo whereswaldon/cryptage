@@ -55,12 +55,13 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 	cribbage := &Cribbage{
 		deck:                deck,
 		players:             2,
-		myTurn:              playerNum == DEALER_PLAYER_NUM,
+		myTurn:              playerNum != DEALER_PLAYER_NUM,
 		playerNum:           playerNum,
 		opponent:            opp,
 		dealer:              DEALER_PLAYER_NUM, //player 1 is always first dealer
 		crib:                &Hand{cards: make([]*Card, 0), indicies: make([]uint, 0)},
 		currentState:        DRAW_STATE,
+		currentSequence:     NewSeq(),
 		stateChangeRequests: make(chan func()),
 	}
 	go func() {
@@ -292,6 +293,7 @@ func (c *Cribbage) PlayCard(handIndex uint) error {
 		}
 		c.currentSequence.Play(c.playerNum, card)
 		c.myTurn = false
+		errs <- nil
 	}
 	return <-errs
 }
@@ -323,9 +325,16 @@ func (c *Cribbage) updateState() {
 			}
 		case CUT_WAIT_STATE:
 			if c.cutCard != nil {
-				c.currentState = CIRCULAR_STATE
+				c.currentState = CIRCULAR_WAIT_STATE
 			}
 		case CIRCULAR_STATE:
+			if !c.myTurn {
+				c.currentState = CIRCULAR_WAIT_STATE
+			}
+		case CIRCULAR_WAIT_STATE:
+			if c.myTurn {
+				c.currentState = CIRCULAR_STATE
+			}
 		case INTERNAL_STATE:
 		case CRIB_STATE:
 		case END_STATE:
@@ -341,6 +350,7 @@ func (c *Cribbage) UI() {
 		fmt.Println(instructionsForState(c.currentState))
 		fmt.Print("> ")
 		scanner.Scan()
+		c.updateState()
 		input := strings.Split(strings.TrimSpace(scanner.Text()), " ")
 		switch input[0] {
 		case "quit":
@@ -389,10 +399,28 @@ func (c *Cribbage) UI() {
 			}
 			err = c.Cut(uint(i))
 			if err != nil {
-				fmt.Printf("error cutting card %d: %v", i, err)
+				fmt.Printf("error cutting card %d: %v\n", i, err)
 				continue
 			}
 			fmt.Println("cut: ", RenderCard(c.cutCard))
+		case "seq":
+			fmt.Println(RenderSeq(c.currentSequence))
+		case "play":
+			if len(input) < 2 {
+				fmt.Println("Usage: play <hand-index>")
+				continue
+			}
+			i, err := strconv.Atoi(input[1])
+			if err != nil {
+				fmt.Println("Not a valid card index! Use numbers next time")
+				continue
+			}
+			err = c.PlayCard(uint(i))
+			if err != nil {
+				fmt.Printf("error playing card %d: %v\n", i, err)
+				continue
+			}
+			fmt.Println("seq: ", RenderSeq(c.currentSequence))
 		case "help":
 			fmt.Println(STR_HELP)
 		default:

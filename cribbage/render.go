@@ -13,6 +13,9 @@ const (
 )
 
 func RenderCard(card *Card) string {
+	if card == nil {
+		return "<nil-card>"
+	}
 	var printer func(...interface{}) string
 	if isUnknown(card) {
 		printer = color.New(color.BgBlue, color.FgWhite).SprintFunc()
@@ -25,6 +28,9 @@ func RenderCard(card *Card) string {
 }
 
 func RenderHand(hand *Hand) string {
+	if hand == nil {
+		return "<nil-hand>"
+	}
 	out := ""
 	for i, card := range hand.cards {
 		if card == nil {
@@ -39,6 +45,9 @@ func RenderHand(hand *Hand) string {
 }
 
 func RenderSeq(seq *Sequence) string {
+	if seq == nil {
+		return "<nil-seq>"
+	}
 	out := ""
 	for i := 0; i < seq.Size(); i++ {
 		player, card := seq.Get(i)
