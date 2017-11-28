@@ -18,7 +18,7 @@ type ScoreBoard struct {
 
 type Cribbage struct {
 	deck                *CribbageDeck
-	opponent            Opponent
+	opponent            *Messenger
 	players             int
 	playerNum           int
 	dealer              int
@@ -28,11 +28,6 @@ type Cribbage struct {
 	myTurn              bool
 	cutCard             *Card
 	stateChangeRequests chan func()
-}
-
-type Opponent interface {
-	Send(message []byte) error
-	Recieve() <-chan []byte
 }
 
 func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
@@ -47,12 +42,16 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "Unable to create CribbageDeck from supplied deck")
 	}
+	opponent, err := NewMessenger(opp)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Couldn't initialize communication with opponent")
+	}
 	cribbage := &Cribbage{
 		deck:                cDeck,
 		players:             2,
 		myTurn:              playerNum != DEALER_PLAYER_NUM,
 		playerNum:           playerNum,
-		opponent:            opp,
+		opponent:            opponent,
 		dealer:              DEALER_PLAYER_NUM, //player 1 is always first dealer
 		crib:                &Hand{cards: make([]*Card, 0), indicies: make([]uint, 0)},
 		currentState:        DRAW_STATE,
@@ -94,41 +93,6 @@ func (c *Cribbage) listenToMessages() {
 			log.Println("Unrecognized message type:", m.Type)
 		}
 	}
-}
-
-// sendToCribMsg sends the opponent a message informing them of which card
-// the local player has opted to add to the crib. The value sent is an absolute
-// index into the deck, rather than into the local player's hand.
-func (c *Cribbage) sentToCribMsg(deckIndex uint) error {
-	enc, err := Encode(&Message{Type: TO_CRIB, Val: deckIndex})
-	if err != nil {
-		return err
-	}
-	log.Println("Sending TO_CRIB")
-	return c.opponent.Send(enc)
-}
-
-// sendCutCardMsg sends the opponent a message informing them of which card
-// the local player is cutting as the shared card
-
-func (c *Cribbage) sentCutCardMsg(deckIndex uint) error {
-	enc, err := Encode(&Message{Type: CUT_CARD, Val: deckIndex})
-	if err != nil {
-		return err
-	}
-	log.Println("Sending CUT_CARD")
-	return c.opponent.Send(enc)
-}
-
-// sendPlayCardMessage sends the opponent a notification that a card has been
-// played in the circular count
-func (c *Cribbage) sendPlayCardMsg(deckIndex uint) error {
-	enc, err := Encode(&Message{Type: PLAYED_CARD, Val: deckIndex})
-	if err != nil {
-		return err
-	}
-	log.Println("Sending PLAYED_CARD")
-	return c.opponent.Send(enc)
 }
 
 func (c *Cribbage) drawHand() (*Hand, error) {
@@ -259,7 +223,9 @@ func (c *Cribbage) Crib(handIndex uint) error {
 		if lastIndex < 4 {
 			return fmt.Errorf("Cannot add another card to crib, hand is already minimum size")
 		}
-		c.sentToCribMsg(c.hand.indicies[handIndex])
+		if err := c.opponent.sendToCribMsg(c.hand.indicies[handIndex]); err != nil {
+			return err
+		}
 		c.crib.cards = append(c.crib.cards, c.hand.cards[handIndex])
 		c.crib.indicies = append(c.crib.indicies, c.hand.indicies[handIndex])
 		c.hand.cards[handIndex] = c.hand.cards[lastIndex]
@@ -280,7 +246,9 @@ func (c *Cribbage) Cut(deckIndex uint) error {
 		} else if deckIndex < 12 { //cutting into cards that have been dealt
 			return fmt.Errorf("Cannot cut at index %d, cards 0-12 are in player hands.", deckIndex)
 		}
-		c.sentCutCardMsg(deckIndex)
+		if err := c.opponent.sendCutCardMsg(deckIndex); err != nil {
+			return err
+		}
 		card, err := c.deck.Draw(deckIndex)
 		if err != nil {
 			return err
@@ -298,7 +266,7 @@ func (c *Cribbage) PlayCard(handIndex uint) error {
 	}
 
 	return c.requestStateChange(func() error {
-		err := c.sendPlayCardMsg(c.hand.indicies[handIndex])
+		err := c.opponent.sendPlayCardMsg(c.hand.indicies[handIndex])
 		if err != nil {
 			return fmt.Errorf("Error sending played card to other player: %v", err)
 		}
