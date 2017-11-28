@@ -38,6 +38,14 @@ func RenderHand(hand *Hand) string {
 	return out
 }
 
+func RenderSeq(seq *Sequence) string {
+	out := ""
+	for i := 0; i < seq.Size(); i++ {
+		out += fmt.Sprintf("%d:", i) + RenderCard(seq.Get(i)) + " "
+	}
+	return out
+}
+
 func isRed(card *Card) bool {
 	return card.Suit == "Hearts" || card.Suit == "Diamonds"
 }
