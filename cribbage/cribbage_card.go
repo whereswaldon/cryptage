@@ -29,9 +29,67 @@ func (c *Card) String() string {
 	return fmt.Sprintf("%s of %s", c.Rank, c.Suit)
 }
 
-var suits = []string{"Hearts", "Spades", "Clubs", "Diamonds"}
-var ranks = []string{"Two", "Three", "Four", "Five", "Six", "Seven",
-	"Eight", "Nine", "Ten", "Jack", "Queen", "King", "Ace"}
+func (c *Card) Value() int {
+	switch c.Rank {
+	case RANK_ACE:
+		return 1
+	case RANK_TWO:
+		return 2
+	case RANK_THREE:
+		return 3
+	case RANK_FOUR:
+		return 4
+	case RANK_FIVE:
+		return 5
+	case RANK_SIX:
+		return 6
+	case RANK_SEVEN:
+		return 7
+	case RANK_EIGHT:
+		return 8
+	case RANK_NINE:
+		return 9
+	case RANK_TEN:
+		fallthrough
+	case RANK_JACK:
+		fallthrough
+	case RANK_QUEEN:
+		fallthrough
+	case RANK_KING:
+		return 10
+	default:
+		return 0
+	}
+}
+
+func (c *Card) Copy() *Card {
+	return &Card{Suit: c.Suit, Rank: c.Rank}
+}
+
+const (
+	SUIT_HEARTS   = "Hearts"
+	SUIT_SPADES   = "Spades"
+	SUIT_CLUBS    = "Clubs"
+	SUIT_DIAMONDS = "Diamonds"
+	RANK_TWO      = "Two"
+	RANK_THREE    = "Three"
+	RANK_FOUR     = "Four"
+	RANK_FIVE     = "Five"
+	RANK_SIX      = "Six"
+	RANK_SEVEN    = "Seven"
+	RANK_EIGHT    = "Eight"
+	RANK_NINE     = "Nine"
+	RANK_TEN      = "Ten"
+	RANK_JACK     = "Jack"
+	RANK_QUEEN    = "Queen"
+	RANK_KING     = "King"
+	RANK_ACE      = "Ace"
+)
+
+var suits = []string{SUIT_SPADES, SUIT_HEARTS, SUIT_DIAMONDS, SUIT_CLUBS}
+var ranks = []string{RANK_TWO, RANK_THREE, RANK_FOUR, RANK_FIVE, RANK_SIX,
+	RANK_SEVEN, RANK_EIGHT, RANK_NINE, RANK_TEN, RANK_JACK, RANK_QUEEN,
+	RANK_KING, RANK_ACE}
 
 func Cards() []card.CardFace {
 	deck := make([]card.CardFace, len(suits)*len(ranks))

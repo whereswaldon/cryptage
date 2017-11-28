@@ -13,8 +13,17 @@ func NewSeq() *Sequence {
 	return &seq
 }
 
+func (s *Sequence) CanPlay(card *Card) bool {
+	if card != nil {
+		return s.Total()+card.Value() < 32
+	}
+	return false
+}
+
 func (s *Sequence) Play(player int, card *Card) {
-	*s = append(*s, Play{Card: card, Player: player})
+	if s.CanPlay(card) {
+		*s = append(*s, Play{Card: card.Copy(), Player: player})
+	}
 }
 
 func (s *Sequence) Get(index int) (int, *Card) {
@@ -23,4 +32,12 @@ func (s *Sequence) Get(index int) (int, *Card) {
 
 func (s *Sequence) Size() int {
 	return len(*s)
+}
+
+func (s *Sequence) Total() int {
+	val := 0
+	for _, play := range *s {
+		val += play.Card.Value()
+	}
+	return val
 }
