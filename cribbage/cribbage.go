@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const DEALER_PLAYER_NUM = 1
@@ -402,11 +403,17 @@ func (c *Cribbage) updateState() {
 
 func (c *Cribbage) UI() {
 	scanner := bufio.NewScanner(os.Stdin)
+	c.updateState()
+	fmt.Println(instructionsForState(c.currentState))
+	fmt.Print("> ")
 	for {
-		c.updateState()
-		fmt.Println(instructionsForState(c.currentState))
-		fmt.Print("> ")
-		scanner.Scan()
+		if !scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				log.Println("Err fetching input:", err)
+			}
+			time.Sleep(time.Second)
+			continue
+		}
 		c.updateState()
 		input := strings.Split(strings.TrimSpace(scanner.Text()), " ")
 		switch input[0] {
@@ -484,5 +491,7 @@ func (c *Cribbage) UI() {
 			fmt.Println("Uknown command: ", input[0])
 			fmt.Println(STR_HELP)
 		}
+		fmt.Println(instructionsForState(c.currentState))
+		fmt.Print("> ")
 	}
 }

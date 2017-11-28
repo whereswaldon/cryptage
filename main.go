@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/whereswaldon/cryptage/cribbage"
 	"github.com/whereswaldon/cryptage/deck"
+	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -19,17 +21,27 @@ const (
 // starts listening on a random port. If you supply a port number as an
 // argument, it connects to that port.
 func main() {
-	if len(os.Args) < 2 {
+	stdin := flag.String("stdin", "", "specify an alternate file to read stdin from")
+	flag.Parse()
+	if *stdin != "" {
+		file, err := os.Open(*stdin)
+		if err != nil {
+			log.Println("Error opening input file: ", err)
+			os.Exit(2)
+		}
+		os.Stdin = file
+	}
+	if len(flag.Args()) < 1 {
 		usage()
-	} else if os.Args[1] == "join" {
-		if len(os.Args) < 3 {
+	} else if flag.Args()[0] == "join" {
+		if len(flag.Args()) < 2 {
 			usage()
 		}
-		dial(os.Args[2])
-	} else if os.Args[1] == "host" {
+		dial(flag.Args()[1])
+	} else if flag.Args()[0] == "host" {
 		port := fmt.Sprintf(":%d", rand.Intn((MAX_PORT)-MIN_PORT)+MIN_PORT)
-		if len(os.Args) > 2 {
-			port = os.Args[2]
+		if len(flag.Args()) > 2 {
+			port = flag.Args()[1]
 		}
 		listen(port)
 	} else {
