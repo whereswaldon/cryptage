@@ -45,3 +45,33 @@ func (s *Sequence) Total() int {
 	}
 	return val
 }
+
+const (
+	CLAIM_PAIR    = 0
+	CLAIM_FIFTEEN = 1
+)
+
+func (s *Sequence) WorthPoints(pointType int) bool {
+	switch pointType {
+	case CLAIM_PAIR:
+		if s.Size() < 2 {
+			return false
+		}
+		lastIdx := s.Size() - 1
+		secLastIdx := lastIdx - 1
+		_, lastCard := s.Get(lastIdx)
+		_, secLastCard := s.Get(secLastIdx)
+		return lastCard.Rank == secLastCard.Rank
+	case CLAIM_FIFTEEN:
+		if s.Size() < 2 {
+			return false
+		}
+		total := 0
+		for start := s.Size() - 1; total < 15; start++ {
+			_, card := s.Get(start)
+			total += card.Value()
+		}
+		return total == 15
+	}
+	return false
+}
