@@ -60,6 +60,7 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 		}
 	}()
 	go cribbage.listenToMessages()
+	cribbage.drawHand()
 	return cribbage, nil
 }
 
@@ -95,15 +96,16 @@ func (c *Cribbage) drawHand() (*Hand, error) {
 	out := make(chan *Hand, 1) // buffered so that a single send doesn't block
 	err := c.requestStateChange(func() error {
 		defer close(out)
-		c.hand = NewHand()
+		hand := NewHand()
 		indicies := deckIndiciesForPlayer(c.players)
 		for _, index := range indicies {
 			current, err := c.deck.Draw(index)
 			if err != nil {
 				return errors.Wrapf(err, "Unable to get hand")
 			}
-			c.hand.Add(current, index)
+			hand.Add(current, index)
 		}
+		c.hand = hand
 		out <- c.hand
 		return nil
 	})
@@ -302,8 +304,15 @@ func (c *Cribbage) updateState() {
 
 func (c *Cribbage) UI() {
 	scanner := bufio.NewScanner(os.Stdin)
+	printState := func() {
+		fmt.Println("hand: ", RenderHand(c.hand))
+		fmt.Println("crib: ", RenderHand(c.crib))
+		fmt.Println("cut: ", RenderCard(c.cutCard))
+		fmt.Println("seq: ",RenderSeq(c.currentSequence))
+	}
 	for {
 		c.updateState()
+		printState()
 		fmt.Println(instructionsForState(c.currentState))
 		fmt.Print("> ")
 		scanner.Scan()
@@ -314,11 +323,9 @@ func (c *Cribbage) UI() {
 			c.Quit()
 			return
 		case "hand":
-			h, err := c.Hand()
+			_, err := c.Hand()
 			if err != nil {
 				fmt.Println(err)
-			} else {
-				fmt.Println("hand: ", RenderHand(h))
 			}
 		case "toCrib":
 			if len(input) < 2 {
@@ -335,15 +342,6 @@ func (c *Cribbage) UI() {
 				fmt.Printf("error adding %s to crib: %v\n", input[1], err)
 				continue
 			}
-			fmt.Println("crib: ", RenderHand(c.crib))
-		case "crib":
-			fmt.Println("crib: ", RenderHand(c.crib))
-		case "cut":
-			if c.cutCard != nil {
-				fmt.Println("cut: ", RenderCard(c.cutCard))
-			} else {
-				fmt.Println("No cut card yet")
-			}
 		case "cutAt":
 			if len(input) < 2 {
 				fmt.Println("Usage: cutAt <card-index>")
@@ -359,9 +357,6 @@ func (c *Cribbage) UI() {
 				fmt.Printf("error cutting card %d: %v\n", i, err)
 				continue
 			}
-			fmt.Println("cut: ", RenderCard(c.cutCard))
-		case "seq":
-			fmt.Println(RenderSeq(c.currentSequence))
 		case "play":
 			if len(input) < 2 {
 				fmt.Println("Usage: play <hand-index>")
@@ -377,12 +372,10 @@ func (c *Cribbage) UI() {
 				fmt.Printf("error playing card %d: %v\n", i, err)
 				continue
 			}
-			fmt.Println("seq: ", RenderSeq(c.currentSequence))
 		case "help":
 			fmt.Println(STR_HELP)
 		default:
 			fmt.Println("Uknown command: ", input[0])
-			fmt.Println(STR_HELP)
 		}
 	}
 }
