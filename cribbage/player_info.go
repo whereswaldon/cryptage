@@ -22,3 +22,10 @@ func (p *PlayerInfo) OpponentNum() int {
 	}
 	return 1
 }
+
+func (p *PlayerInfo) GetNonDealer() int {
+	if p.LocalPlayerNum == p.CurrentDealerNum {
+		return p.OpponentNum()
+	}
+	return p.LocalPlayerNum
+}

@@ -34,6 +34,10 @@ func (s *Sequence) Size() int {
 	return len(*s)
 }
 
+func (s *Sequence) Last() (int, *Card) {
+	return s.Get(s.Size() - 1)
+}
+
 func (s *Sequence) Total() int {
 	val := 0
 	for _, play := range *s {

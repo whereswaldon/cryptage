@@ -22,8 +22,7 @@ type Cribbage struct {
 	players             *PlayerInfo
 	hand, crib          *Hand
 	currentState        State
-	currentSequence     *Sequence
-	myTurn              bool
+	circular            *CircularState
 	cutCard             *Card
 	stateChangeRequests chan func()
 }
@@ -44,14 +43,14 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "Couldn't initialize communication with opponent")
 	}
+	pi := NewPlayerInfo(2, playerNum, DEALER_PLAYER_NUM)
 	cribbage := &Cribbage{
 		deck:                cDeck,
-		players:             NewPlayerInfo(2, playerNum, DEALER_PLAYER_NUM),
-		myTurn:              playerNum != DEALER_PLAYER_NUM,
+		players:             pi,
 		opponent:            opponent,
 		crib:                NewHand(),
 		currentState:        DRAW_STATE,
-		currentSequence:     NewSeq(),
+		circular:            NewCircularState(pi.GetNonDealer()),
 		stateChangeRequests: make(chan func()),
 	}
 	go func() {
@@ -179,11 +178,12 @@ func (c *Cribbage) opponentPlayedCard(deckIndex uint) error {
 		if err != nil {
 			return fmt.Errorf("Unable to draw card played by opponent: %v", err)
 		}
-		if !c.currentSequence.CanPlay(card) {
-			return fmt.Errorf("Cannot play card %v", card)
+		if !c.circular.ShouldPlayCard(c.players.OpponentNum()) {
+			return fmt.Errorf("You cannot play cards right now")
 		}
-		c.currentSequence.Play(c.players.OpponentNum(), card)
-		c.myTurn = true
+		if err := c.circular.PlayCard(c.players.OpponentNum(), card); err != nil {
+			return errors.Wrapf(err, "Unable to play card")
+		}
 		return nil
 	})
 }
@@ -236,7 +236,7 @@ func (c *Cribbage) Cut(deckIndex uint) error {
 func (c *Cribbage) PlayCard(handIndex uint) error {
 	if handIndex >= uint(getHandSize(c.players.NumPlayers)) {
 		return fmt.Errorf("Index out of bounds")
-	} else if !c.myTurn {
+	} else if !c.circular.IsCurrent(c.players.LocalPlayerNum) {
 		return fmt.Errorf("Cannot play cards when it isn't your turn!")
 	}
 
@@ -250,11 +250,9 @@ func (c *Cribbage) PlayCard(handIndex uint) error {
 			return fmt.Errorf("Error sending played card to other player: %v", err)
 		}
 
-		if !c.currentSequence.CanPlay(card) {
-			return fmt.Errorf("Card %s cannot be played!", card)
+		if err := c.circular.PlayCard(c.players.LocalPlayerNum, card); err != nil {
+			return errors.Wrapf(err, "Unable to play card")
 		}
-		c.currentSequence.Play(c.players.LocalPlayerNum, card)
-		c.myTurn = false
 		return nil
 	})
 }
@@ -287,11 +285,11 @@ func (c *Cribbage) updateState() {
 				c.currentState = CIRCULAR_WAIT_STATE
 			}
 		case CIRCULAR_STATE:
-			if !c.myTurn {
+			if !c.circular.IsCurrent(c.players.LocalPlayerNum) {
 				c.currentState = CIRCULAR_WAIT_STATE
 			}
 		case CIRCULAR_WAIT_STATE:
-			if c.myTurn {
+			if c.circular.IsCurrent(c.players.LocalPlayerNum) {
 				c.currentState = CIRCULAR_STATE
 			}
 		case INTERNAL_STATE:
@@ -308,7 +306,7 @@ func (c *Cribbage) UI() {
 		fmt.Println("hand: ", RenderHand(c.hand))
 		fmt.Println("crib: ", RenderHand(c.crib))
 		fmt.Println("cut: ", RenderCard(c.cutCard))
-		fmt.Println("seq: ",RenderSeq(c.currentSequence))
+		fmt.Println("seq: ", RenderSeq(c.circular.CurrentSequence()))
 	}
 	for {
 		c.updateState()
