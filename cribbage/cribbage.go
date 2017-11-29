@@ -85,6 +85,11 @@ func (c *Cribbage) listenToMessages() {
 			if err = c.opponentPlayedCard(m.Val); err != nil {
 				log.Println(err)
 			}
+		case PASSED_TURN:
+			log.Println("Recieved PASSED_TURN")
+			if err = c.opponentEndedTurn(); err != nil {
+				log.Println(err)
+			}
 		default:
 			log.Println("Unrecognized message type:", m.Type)
 		}
@@ -188,6 +193,15 @@ func (c *Cribbage) opponentPlayedCard(deckIndex uint) error {
 	})
 }
 
+// opponentEndedTurn indicates that the opponent has ended their turn
+// within the circular count.
+func (c *Cribbage) opponentEndedTurn() error {
+	return c.requestStateChange(func() error {
+		c.circular.EndTurn()
+		return nil
+	})
+}
+
 // Crib adds the card at the specified index within the player's hand to the
 // crib. This remove it from the player's hand.
 func (c *Cribbage) Crib(handIndex uint) error {
@@ -257,6 +271,19 @@ func (c *Cribbage) PlayCard(handIndex uint) error {
 	})
 }
 
+func (c *Cribbage) EndTurn() error {
+	return c.requestStateChange(func() error {
+		if !c.circular.IsCurrent(c.players.LocalPlayerNum) {
+			return fmt.Errorf("Cannot end turn when it is not your turn!")
+		}
+		c.circular.EndTurn()
+		if err := c.opponent.sendEndTurnMsg(); err != nil {
+			return errors.Wrapf(err, "unable to notify opponent of ended turn")
+		}
+		return nil
+	})
+}
+
 func (c *Cribbage) updateState() {
 	_ = c.requestStateChange(func() error {
 		switch c.currentState {
@@ -320,14 +347,18 @@ func (c *Cribbage) UI() {
 		case "quit":
 			c.Quit()
 			return
+		case "h":
+			fallthrough
 		case "hand":
 			_, err := c.Hand()
 			if err != nil {
 				fmt.Println(err)
 			}
-		case "toCrib":
+		case "c":
+			fallthrough
+		case "crib":
 			if len(input) < 2 {
-				fmt.Println("Usage: toCrib <card-index>")
+				fmt.Println("Usage: crib <card-index>")
 				continue
 			}
 			i, err := strconv.Atoi(input[1])
@@ -340,9 +371,9 @@ func (c *Cribbage) UI() {
 				fmt.Printf("error adding %s to crib: %v\n", input[1], err)
 				continue
 			}
-		case "cutAt":
+		case "cut":
 			if len(input) < 2 {
-				fmt.Println("Usage: cutAt <card-index>")
+				fmt.Println("Usage: cut <card-index>")
 				continue
 			}
 			i, err := strconv.Atoi(input[1])
@@ -355,6 +386,8 @@ func (c *Cribbage) UI() {
 				fmt.Printf("error cutting card %d: %v\n", i, err)
 				continue
 			}
+		case "pl":
+			fallthrough
 		case "play":
 			if len(input) < 2 {
 				fmt.Println("Usage: play <hand-index>")
@@ -368,6 +401,14 @@ func (c *Cribbage) UI() {
 			err = c.PlayCard(uint(i))
 			if err != nil {
 				fmt.Printf("error playing card %d: %v\n", i, err)
+				continue
+			}
+		case "pa":
+			fallthrough
+		case "pass":
+			err := c.EndTurn()
+			if err != nil {
+				fmt.Printf("Problem ending turn: ", err)
 				continue
 			}
 		case "help":

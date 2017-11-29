@@ -82,7 +82,7 @@ func (m *Messenger) sendCutCardMsg(deckIndex uint) error {
 	return m.opponent.Send(enc)
 }
 
-// sendPlayCardMessage sends the opponent a notification that a card has been
+// sendPlayCardMsg sends the opponent a notification that a card has been
 // played in the circular count
 func (m *Messenger) sendPlayCardMsg(deckIndex uint) error {
 	enc, err := Encode(&Message{Type: PLAYED_CARD, Val: deckIndex})
@@ -90,6 +90,17 @@ func (m *Messenger) sendPlayCardMsg(deckIndex uint) error {
 		return err
 	}
 	log.Println("Sending PLAYED_CARD")
+	return m.opponent.Send(enc)
+}
+
+// sendEndTurnMsg sends the opponent a notification that the local player's
+// turn is over
+func (m *Messenger) sendEndTurnMsg() error {
+	enc, err := Encode(&Message{Type: PASSED_TURN})
+	if err != nil {
+		return err
+	}
+	log.Println("Sending PASSED_TURN")
 	return m.opponent.Send(enc)
 }
 
