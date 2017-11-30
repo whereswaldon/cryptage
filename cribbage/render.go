@@ -56,6 +56,16 @@ func RenderSeq(seq *Sequence) string {
 	return out + fmt.Sprintf("total: %d", seq.Total())
 }
 
+func RenderScores(s ScoreBoard) string {
+	p1Printer := color.New(color.FgGreen).SprintfFunc()
+	p2Printer := color.New(color.FgRed).SprintfFunc()
+	return "p1:" + p1Printer(RenderScore(s[1])) + " p2:" + p2Printer(RenderScore(s[2]))
+}
+
+func RenderScore(s *Score) string {
+	return fmt.Sprintf("%d", s.Current) + "(" + fmt.Sprintf("%d", s.Old) + ")"
+}
+
 func isRed(card *Card) bool {
 	return card.Suit == "Hearts" || card.Suit == "Diamonds"
 }

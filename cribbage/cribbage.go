@@ -12,9 +12,10 @@ import (
 
 const DEALER_PLAYER_NUM = 1
 
-type ScoreBoard struct {
-	p1current, p1last, p2current, p2last uint
+type Score struct {
+	Old, Current int
 }
+type ScoreBoard map[int]*Score
 
 type Cribbage struct {
 	deck                *CribbageDeck
@@ -24,6 +25,7 @@ type Cribbage struct {
 	currentState        State
 	circular            *CircularState
 	cutCard             *Card
+	scores              ScoreBoard
 	stateChangeRequests chan func()
 }
 
@@ -52,6 +54,7 @@ func NewCribbage(deck Deck, opp Opponent, playerNum int) (*Cribbage, error) {
 		currentState:        DRAW_STATE,
 		circular:            NewCircularState(pi.GetNonDealer()),
 		stateChangeRequests: make(chan func()),
+		scores:              map[int]*Score{1: {}, 2: {}},
 	}
 	go func() {
 		for req := range cribbage.stateChangeRequests {
@@ -271,6 +274,24 @@ func (c *Cribbage) PlayCard(handIndex uint) error {
 	})
 }
 
+// ClaimPoints attempts to claim points for the local player based upon the current
+// state of the circular count
+func (c *Cribbage) ClaimPoints(pointType int) error {
+	return c.requestStateChange(func() error {
+		if c.currentState != CIRCULAR_STATE {
+			return fmt.Errorf("You can't claim points when it isn't your turn")
+		}
+		gain := c.circular.ClaimPoints(CLAIM_FIFTEEN)
+		if gain == 0 {
+			return fmt.Errorf("There are no points to claim here")
+		}
+		old := c.scores[c.players.LocalPlayerNum].Current
+		c.scores[c.players.LocalPlayerNum].Old = old
+		c.scores[c.players.LocalPlayerNum].Current += gain
+		return nil
+	})
+}
+
 func (c *Cribbage) EndTurn() error {
 	return c.requestStateChange(func() error {
 		if !c.circular.IsCurrent(c.players.LocalPlayerNum) {
@@ -330,6 +351,7 @@ func (c *Cribbage) updateState() {
 func (c *Cribbage) UI() {
 	scanner := bufio.NewScanner(os.Stdin)
 	printState := func() {
+		fmt.Println("scores: ", RenderScores(c.scores))
 		fmt.Println("hand: ", RenderHand(c.hand))
 		fmt.Println("crib: ", RenderHand(c.crib))
 		fmt.Println("cut: ", RenderCard(c.cutCard))
@@ -416,14 +438,18 @@ func (c *Cribbage) UI() {
 				fmt.Println(`Usage: claim <score-type>\nwhere <score-type>s are: 15, pair`)
 				continue
 			}
+			var err error
 			switch input[1] {
 			case "15":
-				fmt.Printf("That was worth %d points!\n", c.circular.ClaimPoints(CLAIM_FIFTEEN))
+				err = c.ClaimPoints(CLAIM_FIFTEEN)
 			case "pair":
-				fmt.Printf("That was worth %d points!\n", c.circular.ClaimPoints(CLAIM_PAIR))
+				err = c.ClaimPoints(CLAIM_PAIR)
 			default:
 				fmt.Println("Unknown score type")
 				continue
+			}
+			if err != nil {
+				fmt.Println("Error claiming points", err)
 			}
 
 		case "help":
