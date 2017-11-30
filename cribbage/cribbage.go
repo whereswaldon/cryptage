@@ -411,10 +411,25 @@ func (c *Cribbage) UI() {
 				fmt.Printf("Problem ending turn: ", err)
 				continue
 			}
+		case "claim":
+			if len(input) < 2 {
+				fmt.Println(`Usage: claim <score-type>\nwhere <score-type>s are: 15, pair`)
+				continue
+			}
+			switch input[1] {
+			case "15":
+				fmt.Printf("That was worth %d points!\n", c.circular.ClaimPoints(CLAIM_FIFTEEN))
+			case "pair":
+				fmt.Printf("That was worth %d points!\n", c.circular.ClaimPoints(CLAIM_PAIR))
+			default:
+				fmt.Println("Unknown score type")
+				continue
+			}
+
 		case "help":
 			fmt.Println(STR_HELP)
 		default:
-			fmt.Println("Uknown command: ", input[0])
+			fmt.Println("Unknown command: ", input[0])
 		}
 	}
 }

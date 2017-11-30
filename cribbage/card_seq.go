@@ -63,15 +63,7 @@ func (s *Sequence) WorthPoints(pointType int) bool {
 		_, secLastCard := s.Get(secLastIdx)
 		return lastCard.Rank == secLastCard.Rank
 	case CLAIM_FIFTEEN:
-		if s.Size() < 2 {
-			return false
-		}
-		total := 0
-		for start := s.Size() - 1; total < 15; start++ {
-			_, card := s.Get(start)
-			total += card.Value()
-		}
-		return total == 15
+		return s.Total() == 15
 	}
 	return false
 }

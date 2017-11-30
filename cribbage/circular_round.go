@@ -74,3 +74,12 @@ func (c *CircularState) newSeq() {
 func (c *CircularState) CurrentSequence() *Sequence {
 	return c.Sequences[len(c.Sequences)-1]
 }
+
+var pointValues map[int]int = map[int]int{CLAIM_FIFTEEN: 2, CLAIM_PAIR: 2}
+
+func (c *CircularState) ClaimPoints(pointType int) int {
+	if c.CurrentSequence().WorthPoints(pointType) {
+		return pointValues[pointType]
+	}
+	return 0
+}
